@@ -12,6 +12,7 @@ import '../services/chat_history_service.dart';
 import '../theme/gemini_colors.dart';
 import '../widgets/gemini_sparkle.dart';
 import '../services/jarvis_brain_service.dart';
+import '../services/jarvis_tts_service.dart';
 
 class ChatScreen extends StatefulWidget {
   final Function(String songQuery)? onNavigateToMusicDownload;
@@ -2092,6 +2093,22 @@ class _ChatScreenState extends State<ChatScreen> {
                               content: Text('Metin panoya kopyalandı!'),
                               duration: Duration(seconds: 1),
                             ),
+                          );
+                        },
+                      ),
+                      // Sesli Dinle (Erkek Jarvis Sesi)
+                      ValueListenableBuilder<bool>(
+                        valueListenable: JarvisTtsService.instance.isSpeakingNotifier,
+                        builder: (context, isSpeaking, _) {
+                          final isThisMsg = JarvisTtsService.instance.isSpeakingSpecificText(msg.content);
+                          return IconButton(
+                            icon: Icon(
+                              isThisMsg ? Icons.volume_up_rounded : Icons.volume_up_outlined,
+                              size: 17,
+                              color: isThisMsg ? const Color(0xFF00F2FE) : GeminiColors.textMuted,
+                            ),
+                            tooltip: isThisMsg ? 'Seslendirmeyi Durdur' : 'Sesli Dinle (Jarvis Erkek Sesi)',
+                            onPressed: () => JarvisTtsService.instance.toggleSpeak(msg.content),
                           );
                         },
                       ),

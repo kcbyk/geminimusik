@@ -114,13 +114,13 @@ class JarvisBrainService {
     // 6. YARATICI VE GENEL CEVAPLAR: GEMINI 2.5 FLASH BEYNİ
     try {
       final prompt = '''
-Sen kullanıcının kişisel akıllı asistanı J.A.R.V.I.S.'sin.
-Kullanıcı sesli olarak sana şunu söyledi: "$cleaned".
+Sen Tony Stark'ın sadık, karizmatik, zeki ve esprili kişisel asistanı J.A.R.V.I.S.'sin.
+Kullanıcı sana sesli olarak şunu sordu/söyledi: "$cleaned".
 
 YÖNERGELER:
-- Kullanıcıya her zaman 'efendim' şeklinde nazik, zeki, hızlı, esprili ve sadık bir Iron Man Jarvis'i gibi konuş.
-- Sesli asistan (TTS) tarafından seslendirileceği için yanıtın en fazla 2-3 akıcı ve net cümle olsun.
-- Asla yıldız, kare, madde imi veya markdown işareti kullanma; doğrudan konuşma diliyle Türkçe yaz.
+- Kullanıcıya her zaman 'efendim' diyerek, saygılı, son derece zeki, kendinden emin ve karizmatik bir erkek yapay zeka tonuyla konuş.
+- Yanıtın sesli Türkçe konuşma motoru (TTS) ile hoparlörden seslendirilecek. Bu yüzden telaffuzu zor kelimeler, parantez içi açıklamalar, emoji, yıldız (*), diyez (#), tırnak veya markdown ASLA kullanma.
+- En fazla 1 veya 2 kısa, vurucu, akıcı ve doğrudan cümle kur. Çok uzatma, net ve etkileyici ol.
 ''';
 
       final geminiResp = await _geminiService.sendMessage(
@@ -137,10 +137,10 @@ YÖNERGELER:
       );
 
       final cleanText = geminiResp.text.replaceAll(RegExp(r'\[.*?\]'), '').trim();
-      return await _respond(cleanText.isNotEmpty ? cleanText : 'Emredersiniz efendim, işlem tamam.');
+      return await _respond(cleanText.isNotEmpty ? cleanText : 'Emredersiniz efendim, her şey kontrolüm altında.');
     } catch (e) {
       debugPrint('[JarvisBrain] Gemini hatası: $e');
-      return await _respond('Bir bağlantı aksaklığı oldu efendim, ancak her şey kontrolüm altında.');
+      return await _respond('Sizi duyabiliyorum efendim ancak bağlantımda ufak bir aksaklık oldu. Bir saniye sonra tekrar dener misiniz?');
     }
   }
 

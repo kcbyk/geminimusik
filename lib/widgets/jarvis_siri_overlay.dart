@@ -43,9 +43,13 @@ class _JarvisSiriOverlayState extends State<JarvisSiriOverlay>
 
   Future<void> _startListeningFlow() async {
     try {
+      // Önce konuşan TTS varsa kes
+      await JarvisTtsService.instance.stop();
+
       if (!_isSpeechInitialized) {
         _isSpeechInitialized = await _speech.initialize(
           onStatus: (status) {
+            debugPrint('[JarvisOverlay] STT Status: $status');
             if (status == 'done' || status == 'notListening') {
               if (mounted && _liveSpeechText.isNotEmpty && _isListening) {
                 _onSpeechComplete();
@@ -54,6 +58,9 @@ class _JarvisSiriOverlayState extends State<JarvisSiriOverlay>
           },
           onError: (val) {
             debugPrint('[JarvisOverlay] STT hatası: ${val.errorMsg}');
+            if (mounted) {
+              setState(() => _isListening = false);
+            }
           },
         );
       }
@@ -68,8 +75,11 @@ class _JarvisSiriOverlayState extends State<JarvisSiriOverlay>
         await _speech.listen(
           listenOptions: stt.SpeechListenOptions(
             localeId: 'tr_TR',
-            listenFor: const Duration(seconds: 15),
+            listenFor: const Duration(seconds: 20),
             pauseFor: const Duration(seconds: 3),
+            partialResults: true,
+            cancelOnError: false,
+            listenMode: stt.ListenMode.dictation,
           ),
           onResult: (val) {
             if (mounted) {
@@ -77,20 +87,28 @@ class _JarvisSiriOverlayState extends State<JarvisSiriOverlay>
                 _liveSpeechText = val.recognizedWords;
               });
               brain.userSpeechNotifier.value = val.recognizedWords;
+
+              if (val.finalResult && val.recognizedWords.trim().isNotEmpty) {
+                _onSpeechComplete();
+              }
             }
           },
         );
       }
     } catch (e) {
       debugPrint('[JarvisOverlay] Dinleme başlatılamadı: $e');
+      if (mounted) {
+        setState(() => _isListening = false);
+      }
     }
   }
 
   void _onSpeechComplete() {
     _speech.stop();
     setState(() => _isListening = false);
-    if (_liveSpeechText.trim().isNotEmpty) {
-      brain.processCommand(_liveSpeechText.trim());
+    final text = _liveSpeechText.trim();
+    if (text.isNotEmpty) {
+      brain.processCommand(text);
     }
   }
 
@@ -286,18 +304,27 @@ class _JarvisSiriOverlayState extends State<JarvisSiriOverlay>
                               ValueListenableBuilder<bool>(
                                 valueListenable: JarvisTtsService.instance.isSpeakingNotifier,
                                 builder: (context, isSpeaking, _) {
-                                  if (!isSpeaking) return const SizedBox.shrink();
-                                  return Container(
-                                    margin: const EdgeInsets.only(left: 6),
-                                    padding: const EdgeInsets.all(4),
-                                    decoration: const BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: Color(0xFF1E222B),
-                                    ),
-                                    child: const Icon(
-                                      Icons.volume_up_rounded,
-                                      color: Color(0xFF00F2FE),
-                                      size: 16,
+                                  return InkWell(
+                                    borderRadius: BorderRadius.circular(16),
+                                    onTap: () => JarvisTtsService.instance.toggleSpeak(response),
+                                    child: Container(
+                                      margin: const EdgeInsets.only(left: 6),
+                                      padding: const EdgeInsets.all(6),
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: isSpeaking
+                                            ? const Color(0xFF00F2FE).withValues(alpha: 0.2)
+                                            : Colors.white.withValues(alpha: 0.08),
+                                        border: Border.all(
+                                          color: isSpeaking ? const Color(0xFF00F2FE) : Colors.white24,
+                                          width: 0.8,
+                                        ),
+                                      ),
+                                      child: Icon(
+                                        isSpeaking ? Icons.volume_up_rounded : Icons.volume_mute_rounded,
+                                        color: isSpeaking ? const Color(0xFF00F2FE) : Colors.white70,
+                                        size: 18,
+                                      ),
                                     ),
                                   );
                                 },
