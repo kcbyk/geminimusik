@@ -1,0 +1,11 @@
+{
+    "name": "AI Music Hub",
+    "short_name": "AIMusicHub",
+    "start_url": ".",
+    "display": "standalone",
+    "background_color": "#0F111A",
+    "theme_color": "#2563EB",
+    "description": "AI Chat & MP3 Music Downloader",
+    "orientation": "portrait-primary",
+    "prefer_related_applications": false
+}
