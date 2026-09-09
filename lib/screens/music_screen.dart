@@ -9,7 +9,6 @@ import '../models/song_model.dart';
 import '../services/music_service.dart';
 import '../theme/gemini_colors.dart';
 import '../widgets/gemini_sparkle.dart';
-import 'voice_assistant_settings_dialog.dart';
 
 enum MusicAutoAction { none, download, play }
 
@@ -756,17 +755,6 @@ class _MusicScreenState extends State<MusicScreen> with SingleTickerProviderStat
             letterSpacing: -0.4,
           ),
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(
-              Icons.keyboard_voice_rounded,
-              color: GeminiColors.geminiCyan,
-            ),
-            tooltip: 'Sesli Asistan & Wake-Word',
-            onPressed: () => VoiceAssistantSettingsDialog.show(context),
-          ),
-          const SizedBox(width: 6),
-        ],
         bottom: TabBar(
           controller: _tabController,
           indicatorColor: GeminiColors.geminiBlue,

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'screens/chat_screen.dart';
 import 'screens/music_screen.dart';
-import 'screens/voice_assistant_settings_dialog.dart';
 import 'theme/gemini_colors.dart';
 import 'widgets/gemini_sparkle.dart';
 import 'services/chat_history_service.dart';
@@ -260,17 +259,6 @@ class _GeminiMainLayoutState extends State<GeminiMainLayout> {
                 onTap: () {
                   if (isDrawer) Navigator.pop(context);
                   setState(() => _currentTabIndex = 1);
-                },
-              ),
-              _buildSidebarNavItem(
-                icon: Icons.keyboard_voice_outlined,
-                activeIcon: Icons.keyboard_voice,
-                label: 'Sesli Asistan',
-                subtitle: 'Arka Plan & Wake-Word',
-                isSelected: false,
-                onTap: () {
-                  if (isDrawer) Navigator.pop(context);
-                  VoiceAssistantSettingsDialog.show(context);
                 },
               ),
             ],

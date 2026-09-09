@@ -11,7 +11,6 @@ import '../services/speech/speech_service.dart';
 import '../services/chat_history_service.dart';
 import '../theme/gemini_colors.dart';
 import '../widgets/gemini_sparkle.dart';
-import 'voice_assistant_settings_dialog.dart';
 
 class ChatScreen extends StatefulWidget {
   final Function(String songQuery)? onNavigateToMusicDownload;
@@ -1013,17 +1012,6 @@ class _ChatScreenState extends State<ChatScreen> {
                       duration: const Duration(seconds: 2),
                     ),
                   );
-                },
-              ),
-
-              // Sesli Asistan & Wake-Word Ayarları
-              _buildSheetActionItem(
-                icon: Icons.keyboard_voice_rounded,
-                title: 'Sesli Asistan',
-                subtitle: 'Arka planda "Hey Gemini" ile müzik açın',
-                onTap: () {
-                  Navigator.pop(ctx);
-                  VoiceAssistantSettingsDialog.show(context);
                 },
               ),
               const SizedBox(height: 10),
