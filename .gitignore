@@ -31,7 +31,6 @@ migrate_working_dir/
 build/
 
 # Android related
-**/android/**/gradle-wrapper.jar
 **/android/.gradle
 **/android/captures/
 **/android/local.properties
