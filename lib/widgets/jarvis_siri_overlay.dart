@@ -42,16 +42,28 @@ class _JarvisSiriOverlayState extends State<JarvisSiriOverlay>
   }
 
   Future<void> _startListeningFlow() async {
+    if (_isListening) return;
+
     try {
-      // Önce konuşan TTS varsa kes
+      // Varsa önceki TTS konuşmasını durdur
       await JarvisTtsService.instance.stop();
+
+      setState(() {
+        _isListening = true;
+        _liveSpeechText = '';
+      });
+      brain.statusNotifier.value = JarvisStatus.listening;
+      brain.userSpeechNotifier.value = '';
 
       if (!_isSpeechInitialized) {
         _isSpeechInitialized = await _speech.initialize(
           onStatus: (status) {
             debugPrint('[JarvisOverlay] STT Status: $status');
             if (status == 'done' || status == 'notListening') {
-              if (mounted && _liveSpeechText.isNotEmpty && _isListening) {
+              if (mounted) {
+                setState(() => _isListening = false);
+              }
+              if (_liveSpeechText.trim().isNotEmpty) {
                 _onSpeechComplete();
               }
             }
@@ -66,23 +78,17 @@ class _JarvisSiriOverlayState extends State<JarvisSiriOverlay>
       }
 
       if (_isSpeechInitialized) {
-        setState(() {
-          _isListening = true;
-          _liveSpeechText = '';
-        });
-        brain.statusNotifier.value = JarvisStatus.listening;
-
         await _speech.listen(
           listenOptions: stt.SpeechListenOptions(
             localeId: 'tr_TR',
-            listenFor: const Duration(seconds: 25),
-            pauseFor: const Duration(seconds: 4),
+            listenFor: const Duration(seconds: 30),
+            pauseFor: const Duration(seconds: 5),
             partialResults: true,
             cancelOnError: false,
-            listenMode: stt.ListenMode.dictation,
+            listenMode: stt.ListenMode.confirmation,
           ),
           onResult: (val) {
-            debugPrint('[JarvisOverlay] Algılanan kelimeler: "${val.recognizedWords}" (final: ${val.finalResult})');
+            debugPrint('[JarvisOverlay] Kelime: "${val.recognizedWords}" (final: ${val.finalResult})');
             if (mounted) {
               setState(() {
                 _liveSpeechText = val.recognizedWords;
@@ -95,6 +101,10 @@ class _JarvisSiriOverlayState extends State<JarvisSiriOverlay>
             }
           },
         );
+      } else {
+        if (mounted) {
+          setState(() => _isListening = false);
+        }
       }
     } catch (e) {
       debugPrint('[JarvisOverlay] Dinleme başlatılamadı: $e');
@@ -105,8 +115,12 @@ class _JarvisSiriOverlayState extends State<JarvisSiriOverlay>
   }
 
   void _onSpeechComplete() {
-    _speech.stop();
-    setState(() => _isListening = false);
+    try {
+      _speech.stop();
+    } catch (_) {}
+    if (mounted) {
+      setState(() => _isListening = false);
+    }
     final text = _liveSpeechText.trim();
     if (text.isNotEmpty) {
       brain.processCommand(text);
@@ -262,7 +276,19 @@ class _JarvisSiriOverlayState extends State<JarvisSiriOverlay>
                     child: _buildSiriGlowingOrb(),
                   ),
 
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 10),
+
+                  // Durum ve Dokunma İpucu
+                  Text(
+                    _isListening ? '● Dinliyor... (Bitirmek için dokunun)' : 'Konuşmak için mikrofona dokunun',
+                    style: TextStyle(
+                      color: _isListening ? const Color(0xFF00F2FE) : Colors.white38,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+
+                  const SizedBox(height: 14),
 
                   // Jarvis'in Yanıtı ve TTS Göstergesi
                   ValueListenableBuilder<String>(

@@ -10,8 +10,6 @@ import 'widgets/jarvis_siri_overlay.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // Jarvis Sesli Asistan ve Donanım Motorunu Başlat
-  VoiceAssistantService.instance.startAssistant();
   runApp(const GeminiApp());
 }
 

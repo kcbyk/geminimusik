@@ -55,7 +55,9 @@ class VoiceAssistantService extends ChangeNotifier {
         );
       }
 
-      if (isEnabled && !kIsWeb) {
+      // Arka plan mikrofon döngüsü sadece Porcupine Wake-Word anahtarı (AccessKey) girilmişse çalışır.
+      // Aksi halde telefonun/tarayıcının mikrofonunu sürekli açıp kapatarak rahatsız edici ses yapar ve çakışmaya yol açar.
+      if (isEnabled && !kIsWeb && !isKeylessMode) {
         await startAssistant();
       }
     } catch (e) {
