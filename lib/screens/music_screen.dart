@@ -747,6 +747,8 @@ class _MusicScreenState extends State<MusicScreen> with SingleTickerProviderStat
             : null,
         title: const Text(
           'Müzik Hub',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: TextStyle(
             color: GeminiColors.textPrimary,
             fontSize: 18,

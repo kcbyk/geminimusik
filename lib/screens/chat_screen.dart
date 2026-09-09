@@ -11,6 +11,7 @@ import '../services/speech/speech_service.dart';
 import '../services/chat_history_service.dart';
 import '../theme/gemini_colors.dart';
 import '../widgets/gemini_sparkle.dart';
+import 'voice_assistant_settings_dialog.dart';
 
 class ChatScreen extends StatefulWidget {
   final Function(String songQuery)? onNavigateToMusicDownload;
@@ -1014,6 +1015,17 @@ class _ChatScreenState extends State<ChatScreen> {
                   );
                 },
               ),
+
+              // Sesli Asistan & Wake-Word Ayarları
+              _buildSheetActionItem(
+                icon: Icons.keyboard_voice_rounded,
+                title: 'Sesli Asistan',
+                subtitle: 'Arka planda "Hey Gemini" ile müzik açın',
+                onTap: () {
+                  Navigator.pop(ctx);
+                  VoiceAssistantSettingsDialog.show(context);
+                },
+              ),
               const SizedBox(height: 10),
             ],
           ),
@@ -1540,90 +1552,110 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Widget _buildPhotoTopBar() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       color: Colors.transparent,
       child: Row(
         children: [
-          if (widget.onOpenSidebar != null)
+          // 1. Sol Menü Butonu (Drawer / Sidebar Açıcı)
+          if (widget.onOpenSidebar != null) ...[
             _buildBlackCircularButton(
               icon: Icons.menu,
               tooltip: 'Menü',
               onPressed: widget.onOpenSidebar!,
             ),
+            const SizedBox(width: 6),
+          ],
 
-          const SizedBox(width: 8),
-
-          InkWell(
-            borderRadius: BorderRadius.circular(20),
-            onTap: _showModelPickerMenu,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.55),
+          // 2. Model Seçici Dropdown (Dar ekranlarda taşma yapmaz, esnek küçülür)
+          Flexible(
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: InkWell(
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.white.withOpacity(0.08), width: 0.8),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    _selectedModelLabel,
-                    style: const TextStyle(
-                      color: Color(0xFFF1F3F4),
-                      fontSize: 17,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: -0.3,
-                    ),
+                onTap: _showModelPickerMenu,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.55),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: Colors.white.withOpacity(0.08), width: 0.8),
                   ),
-                  const SizedBox(width: 4),
-                  const Icon(
-                    Icons.keyboard_arrow_down,
-                    color: Color(0xFFF1F3F4),
-                    size: 20,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          _selectedModelLabel,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Color(0xFFF1F3F4),
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: -0.3,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 2),
+                      const Icon(
+                        Icons.keyboard_arrow_down,
+                        color: Color(0xFFF1F3F4),
+                        size: 18,
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
             ),
           ),
 
-          const Spacer(),
+          const SizedBox(width: 6),
 
-          // Müzik çalıyorsa Üst Barda Oynatıcıyı Gizle / Aç Butonu (Diğer menü butonları gibi siyah yuvarlak zemin, beyaz ikon)
-          ListenableBuilder(
-            listenable: GlobalAudioService.instance,
-            builder: (context, _) {
-              final svc = GlobalAudioService.instance;
-              if (!svc.hasTrack) return const SizedBox.shrink();
-              final isHidden = svc.isHidden || svc.isMinimized;
-              return Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: _buildBlackCircularButton(
-                  icon: isHidden ? Icons.music_note_rounded : Icons.music_off_rounded,
-                  tooltip: isHidden ? 'Müzik Oynatıcısını Aç' : 'Müzik Oynatıcısını Gizle',
-                  onPressed: () {
-                    if (isHidden) {
-                      svc.showPlayer();
-                    } else {
-                      svc.hidePlayer();
-                    }
-                  },
-                ),
-              );
-            },
-          ),
+          // 3. Sağ Butonlar Grubu (Hiçbir koşulda ekran dışına taşmaz)
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Müzik çalıyorsa Üst Barda Oynatıcıyı Gizle / Aç Butonu
+              ListenableBuilder(
+                listenable: GlobalAudioService.instance,
+                builder: (context, _) {
+                  final svc = GlobalAudioService.instance;
+                  if (!svc.hasTrack) return const SizedBox.shrink();
+                  final isHidden = svc.isHidden || svc.isMinimized;
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 6),
+                    child: _buildBlackCircularButton(
+                      icon: isHidden ? Icons.music_note_rounded : Icons.music_off_rounded,
+                      tooltip: isHidden ? 'Müzik Oynatıcısını Aç' : 'Müzik Oynatıcısını Gizle',
+                      iconColor: isHidden ? GeminiColors.geminiCyan : const Color(0xFFE3E3E3),
+                      onPressed: () {
+                        if (isHidden) {
+                          svc.showPlayer();
+                        } else {
+                          svc.hidePlayer();
+                        }
+                      },
+                    ),
+                  );
+                },
+              ),
 
-          _buildBlackCircularButton(
-            icon: Icons.edit_outlined,
-            tooltip: 'Yeni Sohbet',
-            onPressed: _resetChat,
-          ),
+              // Yeni Sohbet Butonu
+              _buildBlackCircularButton(
+                icon: Icons.edit_outlined,
+                tooltip: 'Yeni Sohbet',
+                onPressed: _resetChat,
+              ),
 
-          const SizedBox(width: 8),
+              const SizedBox(width: 6),
 
-          _buildBlackCircularButton(
-            icon: Icons.more_horiz,
-            tooltip: 'Araçlar / Menü',
-            onPressed: _showGeminiToolsSheet,
+              // Araçlar / Menü Butonu
+              _buildBlackCircularButton(
+                icon: Icons.more_horiz,
+                tooltip: 'Araçlar / Menü',
+                onPressed: _showGeminiToolsSheet,
+              ),
+            ],
           ),
         ],
       ),
@@ -1634,14 +1666,26 @@ class _ChatScreenState extends State<ChatScreen> {
     required IconData icon,
     required String tooltip,
     required VoidCallback onPressed,
+    Color? iconColor,
+    double size = 38,
+    double iconSize = 20,
   }) {
     return Container(
+      width: size,
+      height: size,
       decoration: BoxDecoration(
         color: Colors.black.withOpacity(0.55),
         shape: BoxShape.circle,
+        border: Border.all(
+          color: Colors.white.withOpacity(0.08),
+          width: 0.8,
+        ),
       ),
       child: IconButton(
-        icon: Icon(icon, color: const Color(0xFFE3E3E3), size: 22),
+        padding: EdgeInsets.zero,
+        constraints: BoxConstraints.tightFor(width: size, height: size),
+        visualDensity: VisualDensity.compact,
+        icon: Icon(icon, color: iconColor ?? const Color(0xFFE3E3E3), size: iconSize),
         tooltip: tooltip,
         onPressed: onPressed,
       ),
