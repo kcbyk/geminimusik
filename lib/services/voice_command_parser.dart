@@ -97,12 +97,12 @@ class VoiceCommandParser {
       RegExp(r'^listen\s+to\s+(.+)$', caseSensitive: false),
     ];
 
+    // Sadece açıkça müzik/şarkı çalma kalıbı varsa play döndür
     for (final pattern in playPatterns) {
       final match = pattern.firstMatch(lower);
       if (match != null && match.groupCount >= 1) {
         final query = match.group(1)?.trim();
         if (query != null && query.isNotEmpty && query.length > 1) {
-          // İstenmeyen kelimeleri temizle (örn: 'merhaba', 'hey', 'lütfen')
           final cleanedQuery = _cleanQueryPrefixes(query);
           if (cleanedQuery.isNotEmpty) {
             return ParsedVoiceCommand(
@@ -115,17 +115,7 @@ class VoiceCommandParser {
       }
     }
 
-    // Eğer direkt bir eylem kelimesi içermiyorsa ancak 2 kelimeden fazlaysa veya açık bir isimse
-    // Örn: "Duman Haberin Yok Ölüyorum"
-    if (lower.length > 2) {
-      final cleanedQuery = _cleanQueryPrefixes(clean);
-      return ParsedVoiceCommand(
-        type: VoiceActionType.play,
-        songQuery: cleanedQuery,
-        rawText: clean,
-      );
-    }
-
+    // Açıkça müzik komutu değilse yapay zekaya (Gemini) bırak
     return ParsedVoiceCommand(type: VoiceActionType.unknown, rawText: clean);
   }
 

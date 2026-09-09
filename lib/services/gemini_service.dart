@@ -90,6 +90,7 @@ Cevabında YALNIZCA şu formatta arama komutunu ver (başka hiçbir metin ekleme
     String model = 'gemini-2.5-flash',
     Uint8List? imageBytes,
     String? mimeType,
+    String? customSystemPrompt,
   }) async {
     // Gemini API formatında conversation context'i oluştur
     final contents = <Map<String, dynamic>>[];
@@ -136,10 +137,12 @@ Cevabında YALNIZCA şu formatta arama komutunu ver (başka hiçbir metin ekleme
       'parts': userParts,
     });
 
+    final instructionText = customSystemPrompt ?? _systemPrompt;
+
     final requestBody = {
       'system_instruction': {
         'parts': [
-          {'text': _systemPrompt}
+          {'text': instructionText}
         ]
       },
       'contents': contents,

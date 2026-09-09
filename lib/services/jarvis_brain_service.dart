@@ -27,6 +27,8 @@ class JarvisBrainService {
   final ValueNotifier<String> jarvisResponseNotifier = ValueNotifier<String>('');
   final ValueNotifier<bool> isOverlayVisibleNotifier = ValueNotifier<bool>(false);
 
+  final List<ChatMessage> _jarvisHistory = [];
+
   /// Siri tarzı overlay'i göster
   void showOverlay() {
     isOverlayVisibleNotifier.value = true;
@@ -104,40 +106,63 @@ class JarvisBrainService {
       return await _respond(result);
     }
 
-    // 5. MÜZİK KONTROLLERİ (Doğrudan Çalma, Durdurma vb.)
+    // 5. MÜZİK KONTROLLERİ (Sadece açıkça "çal/aç/oynat/duraklat/kapat" denildiğinde)
     final musicCmd = VoiceCommandParser.parse(cleaned);
     if (musicCmd.type != VoiceActionType.unknown) {
       final result = await _handleMusicCommand(musicCmd);
       return await _respond(result);
     }
 
-    // 6. YARATICI VE GENEL CEVAPLAR: GEMINI 2.5 FLASH BEYNİ
+    // 6. YARATICI VE GENEL CEVAPLAR: GEMINI 2.5 FLASH BEYNİ (Sohbet & Genel Konuşma)
     try {
-      final prompt = '''
-Sen Tony Stark'ın sadık, karizmatik, zeki ve esprili kişisel asistanı J.A.R.V.I.S.'sin.
-Kullanıcı sana sesli olarak şunu sordu/söyledi: "$cleaned".
+      const jarvisSystemPrompt = '''
+Sen kullanıcının son derece sadık, karizmatik, zeki ve genel konularda sohbet edebilen Iron Man tarzı kişisel asistanı J.A.R.V.I.S.'sin.
+Kullanıcı seninle Türkçe konuşuyor. Sorularını yanıtla, dertleş, bilgi ver veya emirlerini yerine getir.
 
 YÖNERGELER:
-- Kullanıcıya her zaman 'efendim' diyerek, saygılı, son derece zeki, kendinden emin ve karizmatik bir erkek yapay zeka tonuyla konuş.
-- Yanıtın sesli Türkçe konuşma motoru (TTS) ile hoparlörden seslendirilecek. Bu yüzden telaffuzu zor kelimeler, parantez içi açıklamalar, emoji, yıldız (*), diyez (#), tırnak veya markdown ASLA kullanma.
-- En fazla 1 veya 2 kısa, vurucu, akıcı ve doğrudan cümle kur. Çok uzatma, net ve etkileyici ol.
+- Kullanıcıya her zaman 'efendim' diyerek saygılı, samimi, esprili ve kendinden emin bir tonda konuş.
+- Kullanıcı doğrudan müzik/şarkı aç demedikçe asla şarkı aramaya kalkma; sorusuna doğrudan ve zekice yanıt ver.
+- Yanıtın sesli Türkçe konuşma motoru (TTS) ile seslendirileceği için en fazla 1 veya 2 akıcı, net cümle kur.
+- Asla yıldız (*), diyez (#), emoji, parantez içi veya markdown sembolleri kullanma. Doğal konuşma Türkçesi kullan.
 ''';
 
-      final geminiResp = await _geminiService.sendMessage(
-        prompt: prompt,
-        history: [
-          ChatMessage(
-            id: DateTime.now().millisecondsSinceEpoch.toString(),
-            content: prompt,
-            isUser: true,
-            timestamp: DateTime.now(),
-          ),
-        ],
-        model: 'gemini-2.5-flash',
+      _jarvisHistory.add(
+        ChatMessage(
+          id: DateTime.now().millisecondsSinceEpoch.toString(),
+          content: cleaned,
+          isUser: true,
+          timestamp: DateTime.now(),
+        ),
       );
 
-      final cleanText = geminiResp.text.replaceAll(RegExp(r'\[.*?\]'), '').trim();
-      return await _respond(cleanText.isNotEmpty ? cleanText : 'Emredersiniz efendim, her şey kontrolüm altında.');
+      final geminiResp = await _geminiService.sendMessage(
+        prompt: cleaned,
+        history: _jarvisHistory,
+        model: 'gemini-2.5-flash',
+        customSystemPrompt: jarvisSystemPrompt,
+      );
+
+      final cleanText = geminiResp.text
+          .replaceAll(RegExp(r'\[.*?\]'), '')
+          .replaceAll(RegExp(r'\*\*|\*|#+|`+'), '')
+          .trim();
+
+      final reply = cleanText.isNotEmpty ? cleanText : 'Emredersiniz efendim, sizi dinliyorum.';
+
+      _jarvisHistory.add(
+        ChatMessage(
+          id: (DateTime.now().millisecondsSinceEpoch + 1).toString(),
+          content: reply,
+          isUser: false,
+          timestamp: DateTime.now(),
+        ),
+      );
+
+      if (_jarvisHistory.length > 20) {
+        _jarvisHistory.removeRange(0, _jarvisHistory.length - 20);
+      }
+
+      return await _respond(reply);
     } catch (e) {
       debugPrint('[JarvisBrain] Gemini hatası: $e');
       return await _respond('Sizi duyabiliyorum efendim ancak bağlantımda ufak bir aksaklık oldu. Bir saniye sonra tekrar dener misiniz?');
