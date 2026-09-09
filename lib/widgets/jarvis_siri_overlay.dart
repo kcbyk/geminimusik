@@ -75,13 +75,14 @@ class _JarvisSiriOverlayState extends State<JarvisSiriOverlay>
         await _speech.listen(
           listenOptions: stt.SpeechListenOptions(
             localeId: 'tr_TR',
-            listenFor: const Duration(seconds: 20),
-            pauseFor: const Duration(seconds: 3),
+            listenFor: const Duration(seconds: 25),
+            pauseFor: const Duration(seconds: 4),
             partialResults: true,
             cancelOnError: false,
             listenMode: stt.ListenMode.dictation,
           ),
           onResult: (val) {
+            debugPrint('[JarvisOverlay] Algılanan kelimeler: "${val.recognizedWords}" (final: ${val.finalResult})');
             if (mounted) {
               setState(() {
                 _liveSpeechText = val.recognizedWords;

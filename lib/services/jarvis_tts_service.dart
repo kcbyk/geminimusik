@@ -116,6 +116,11 @@ class JarvisTtsService {
 
       currentlySpeakingTextNotifier.value = text;
       isSpeakingNotifier.value = true;
+      debugPrint('[JarvisTTS] Konuşuyor: "$cleanText"');
+
+      if (!kIsWeb) {
+        await _flutterTts.awaitSpeakCompletion(true);
+      }
       await _flutterTts.speak(cleanText);
     } catch (e) {
       debugPrint('[JarvisTTS] Speak hatası: $e');
