@@ -8,8 +8,7 @@ import 'package:porcupine_flutter/porcupine_manager.dart';
 import 'package:porcupine_flutter/porcupine.dart';
 import 'package:porcupine_flutter/porcupine_error.dart';
 
-import 'global_audio_service.dart';
-import 'voice_command_parser.dart';
+import 'jarvis_brain_service.dart';
 
 /// Arka planda ve kilit ekranında çalışan düşük güçlü sesli asistan servisi.
 /// Porcupine ile pil tüketmeden wake-word (örn. 'Jarvis', 'Porcupine') dinler,
@@ -46,7 +45,7 @@ class VoiceAssistantService extends ChangeNotifier {
   Future<void> _initSettings() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      isEnabled = prefs.getBool(_prefEnabled) ?? false;
+      isEnabled = prefs.getBool(_prefEnabled) ?? true;
       accessKey = prefs.getString(_prefAccessKey) ?? '';
       final keywordName = prefs.getString(_prefKeyword);
       if (keywordName != null) {
@@ -56,7 +55,7 @@ class VoiceAssistantService extends ChangeNotifier {
         );
       }
 
-      if (isEnabled && accessKey.isNotEmpty && !kIsWeb) {
+      if (isEnabled && !kIsWeb) {
         await startAssistant();
       }
     } catch (e) {
@@ -181,12 +180,15 @@ class VoiceAssistantService extends ChangeNotifier {
     HapticFeedback.heavyImpact();
     SystemSound.play(SystemSoundType.click);
 
+    // Siri tarzı overlay'i aç
+    JarvisBrainService.instance.showOverlay();
+
     isListeningWakeWord = false;
     isListeningCommand = true;
     lastStatus = 'Sizi dinliyor...';
     notifyListeners();
 
-    _updateForegroundNotification('Sizi Dinliyor...', 'Komutunuzu söyleyin (Örn: "Duman çal")');
+    _updateForegroundNotification('J.A.R.V.I.S. Sizi Dinliyor...', 'Komutunuzu söyleyin...');
 
     // Mikrofon çakışmaması için Porcupine'ı geçici durdur
     try {
@@ -206,7 +208,6 @@ class VoiceAssistantService extends ChangeNotifier {
       },
       onStatus: (val) {
         if (val == 'done' || val == 'notListening') {
-          // Dinleme bittiğinde komutu çalıştır ve geri dön
           _resumeWakeWordListening();
         }
       },
@@ -220,7 +221,6 @@ class VoiceAssistantService extends ChangeNotifier {
 
     String recognizedWords = '';
 
-    // 5 saniye içinde konuşulmazsa otomatik geri dön
     _sttTimeoutTimer?.cancel();
     _sttTimeoutTimer = Timer(const Duration(seconds: 6), () {
       if (isListeningCommand) {
@@ -231,12 +231,13 @@ class VoiceAssistantService extends ChangeNotifier {
     await _speechToText.listen(
       listenOptions: stt.SpeechListenOptions(
         localeId: 'tr_TR',
-        listenFor: const Duration(seconds: 5),
-        pauseFor: const Duration(seconds: 2),
+        listenFor: const Duration(seconds: 8),
+        pauseFor: const Duration(seconds: 3),
       ),
       onResult: (result) {
         recognizedWords = result.recognizedWords;
         lastRecognizedText = recognizedWords;
+        JarvisBrainService.instance.userSpeechNotifier.value = recognizedWords;
         notifyListeners();
 
         if (result.finalResult && recognizedWords.isNotEmpty) {
@@ -247,44 +248,15 @@ class VoiceAssistantService extends ChangeNotifier {
     );
   }
 
-  /// Alınan komutu ayrıştırıp müzik motoruna gönderir
+  /// Alınan komutu Jarvis Brain servisine gönderir
   Future<void> _executeCommand(String text) async {
-    debugPrint('Komut işleniyor: "$text"');
+    debugPrint('Jarvis komutu işleniyor: "$text"');
     lastStatus = 'İşleniyor: "$text"';
     notifyListeners();
 
-    final parsed = VoiceCommandParser.parse(text);
-
-    switch (parsed.type) {
-      case VoiceActionType.play:
-        if (parsed.songQuery != null && parsed.songQuery!.isNotEmpty) {
-          lastStatus = 'Çalınıyor: ${parsed.songQuery}';
-          _updateForegroundNotification('Müzik Başlatılıyor', parsed.songQuery!);
-          await GlobalAudioService.instance.searchAndPlay(parsed.songQuery!);
-        }
-        break;
-      case VoiceActionType.pause:
-        lastStatus = 'Duraklatıldı';
-        await GlobalAudioService.instance.pauseOrResume();
-        break;
-      case VoiceActionType.resume:
-        lastStatus = 'Devam ediliyor';
-        await GlobalAudioService.instance.pauseOrResume();
-        break;
-      case VoiceActionType.stop:
-        lastStatus = 'Durduruldu';
-        await GlobalAudioService.instance.stop();
-        break;
-      case VoiceActionType.next:
-        lastStatus = 'Sonraki şarkı';
-        // Mevcut şarkıyı durdurup sonrakini arayabilir veya stop edebilir
-        break;
-      case VoiceActionType.unknown:
-        if (parsed.songQuery != null && parsed.songQuery!.isNotEmpty) {
-          await GlobalAudioService.instance.searchAndPlay(parsed.songQuery!);
-        }
-        break;
-    }
+    JarvisBrainService.instance.showOverlay();
+    final reply = await JarvisBrainService.instance.processCommand(text);
+    _updateForegroundNotification('J.A.R.V.I.S.', reply);
 
     if (isKeylessMode) {
       isListeningCommand = false;

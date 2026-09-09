@@ -11,6 +11,7 @@ import '../services/speech/speech_service.dart';
 import '../services/chat_history_service.dart';
 import '../theme/gemini_colors.dart';
 import '../widgets/gemini_sparkle.dart';
+import '../services/jarvis_brain_service.dart';
 
 class ChatScreen extends StatefulWidget {
   final Function(String songQuery)? onNavigateToMusicDownload;
@@ -1012,6 +1013,17 @@ class _ChatScreenState extends State<ChatScreen> {
                       duration: const Duration(seconds: 2),
                     ),
                   );
+                },
+              ),
+
+              // J.A.R.V.I.S. Siri Tarzı Sesli Asistan
+              _buildSheetActionItem(
+                icon: Icons.auto_awesome,
+                title: 'J.A.R.V.I.S. Asistan',
+                subtitle: 'Sesli konuşma, fener, pil ve telefon kontrolü',
+                onTap: () {
+                  Navigator.pop(ctx);
+                  JarvisBrainService.instance.showOverlay();
                 },
               ),
               const SizedBox(height: 10),

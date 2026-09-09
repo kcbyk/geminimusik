@@ -4,9 +4,14 @@ import 'screens/music_screen.dart';
 import 'theme/gemini_colors.dart';
 import 'widgets/gemini_sparkle.dart';
 import 'services/chat_history_service.dart';
+import 'services/jarvis_brain_service.dart';
+import 'services/voice_assistant_service.dart';
+import 'widgets/jarvis_siri_overlay.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Jarvis Sesli Asistan ve Donanım Motorunu Başlat
+  VoiceAssistantService.instance.startAssistant();
   runApp(const GeminiApp());
 }
 
@@ -68,60 +73,77 @@ class _GeminiMainLayoutState extends State<GeminiMainLayout> {
       backgroundColor: GeminiColors.background,
       // Mobil cihazlar için sol drawer
       drawer: isDesktopOrWebWide ? null : _buildSidebar(isDrawer: true),
-      body: Row(
+      body: Stack(
         children: [
-          // Masaüstü / Web için Daraltılabilir Gemini Sol Menü (Sidebar)
-          if (isDesktopOrWebWide && _isSidebarOpen)
-            _buildSidebar(isDrawer: false),
+          Row(
+            children: [
+              // Masaüstü / Web için Daraltılabilir Gemini Sol Menü (Sidebar)
+              if (isDesktopOrWebWide && _isSidebarOpen)
+                _buildSidebar(isDrawer: false),
 
-          // Ana İçerik Ekranı (Chat veya Music)
-          Expanded(
-            child: IndexedStack(
-              index: _currentTabIndex,
-              children: [
-                ChatScreen(
-                  onOpenSidebar: () {
-                    if (isDesktopOrWebWide) {
-                      setState(() => _isSidebarOpen = !_isSidebarOpen);
-                    } else {
-                      _scaffoldKey.currentState?.openDrawer();
-                    }
-                  },
-                  onNavigateToMusicDownload: (song) {
-                    setState(() {
-                      _forwardedSongQuery = song;
-                      _forwardedAction = MusicAutoAction.download;
-                      _currentTabIndex = 1;
-                    });
-                  },
-                  onNavigateToMusicPlay: (song) {
-                    setState(() {
-                      _forwardedSongQuery = song;
-                      _forwardedAction = MusicAutoAction.play;
-                      _currentTabIndex = 1;
-                    });
-                  },
-                  activeSessionId: _activeSessionId,
-                  onSessionChanged: (sessionId, messages) {
-                    setState(() {
-                      _activeSessionId = sessionId.isEmpty ? null : sessionId;
-                    });
-                  },
+              // Ana İçerik Ekranı (Chat veya Music)
+              Expanded(
+                child: IndexedStack(
+                  index: _currentTabIndex,
+                  children: [
+                    ChatScreen(
+                      onOpenSidebar: () {
+                        if (isDesktopOrWebWide) {
+                          setState(() => _isSidebarOpen = !_isSidebarOpen);
+                        } else {
+                          _scaffoldKey.currentState?.openDrawer();
+                        }
+                      },
+                      onNavigateToMusicDownload: (song) {
+                        setState(() {
+                          _forwardedSongQuery = song;
+                          _forwardedAction = MusicAutoAction.download;
+                          _currentTabIndex = 1;
+                        });
+                      },
+                      onNavigateToMusicPlay: (song) {
+                        setState(() {
+                          _forwardedSongQuery = song;
+                          _forwardedAction = MusicAutoAction.play;
+                          _currentTabIndex = 1;
+                        });
+                      },
+                      activeSessionId: _activeSessionId,
+                      onSessionChanged: (sessionId, messages) {
+                        setState(() {
+                          _activeSessionId = sessionId.isEmpty ? null : sessionId;
+                        });
+                      },
+                    ),
+                    MusicScreen(
+                      key: ValueKey('${_forwardedSongQuery ?? 'gemini_music_tab'}_${_forwardedAction.name}'),
+                      initialQuery: _forwardedSongQuery,
+                      autoAction: _forwardedAction,
+                      onOpenSidebar: () {
+                        if (isDesktopOrWebWide) {
+                          setState(() => _isSidebarOpen = !_isSidebarOpen);
+                        } else {
+                          _scaffoldKey.currentState?.openDrawer();
+                        }
+                      },
+                    ),
+                  ],
                 ),
-                MusicScreen(
-                  key: ValueKey('${_forwardedSongQuery ?? 'gemini_music_tab'}_${_forwardedAction.name}'),
-                  initialQuery: _forwardedSongQuery,
-                  autoAction: _forwardedAction,
-                  onOpenSidebar: () {
-                    if (isDesktopOrWebWide) {
-                      setState(() => _isSidebarOpen = !_isSidebarOpen);
-                    } else {
-                      _scaffoldKey.currentState?.openDrawer();
-                    }
-                  },
+              ),
+            ],
+          ),
+
+          // 2. JARVIS SIRI OVERLAY (Hey Jarvis veya butona basıldığında açılır)
+          ValueListenableBuilder<bool>(
+            valueListenable: JarvisBrainService.instance.isOverlayVisibleNotifier,
+            builder: (context, isVisible, _) {
+              if (!isVisible) return const SizedBox.shrink();
+              return Positioned.fill(
+                child: JarvisSiriOverlay(
+                  onClose: () => JarvisBrainService.instance.hideOverlay(),
                 ),
-              ],
-            ),
+              );
+            },
           ),
         ],
       ),
