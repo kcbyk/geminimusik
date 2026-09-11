@@ -20,8 +20,9 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.example.ai_music_hub"
+        // Unique Android package ID. This prevents install conflicts with builds
+        // that use Flutter's former default `com.example.ai_music_hub` ID.
+        applicationId = "com.kcbyk.geminimusik"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
