@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'screens/chat_screen.dart';
 import 'screens/music_screen.dart';
+import 'screens/agent_screen.dart';
+import 'screens/jarvis_overlay_page.dart';
 import 'theme/gemini_colors.dart';
 import 'widgets/gemini_sparkle.dart';
 import 'services/chat_history_service.dart';
 import 'services/jarvis_brain_service.dart';
 import 'services/voice_assistant_service.dart';
 import 'widgets/jarvis_siri_overlay.dart';
+
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -34,6 +38,9 @@ class GeminiApp extends StatelessWidget {
         ),
       ),
       home: const GeminiMainLayout(),
+      routes: {
+        '/jarvis_overlay': (context) => const JarvisOverlayPage(),
+      },
     );
   }
 }
@@ -59,6 +66,16 @@ class _GeminiMainLayoutState extends State<GeminiMainLayout> {
   void initState() {
     super.initState();
     ChatHistoryService.instance.init();
+    _setupJarvisChannel();
+  }
+
+  void _setupJarvisChannel() {
+    const MethodChannel channel = MethodChannel('jarvis_assistant');
+    channel.setMethodCallHandler((call) async {
+      if (call.method == 'openJarvis') {
+        JarvisBrainService.instance.showOverlay();
+      }
+    });
   }
 
   @override
@@ -117,6 +134,15 @@ class _GeminiMainLayoutState extends State<GeminiMainLayout> {
                       key: ValueKey('${_forwardedSongQuery ?? 'gemini_music_tab'}_${_forwardedAction.name}'),
                       initialQuery: _forwardedSongQuery,
                       autoAction: _forwardedAction,
+                      onOpenSidebar: () {
+                        if (isDesktopOrWebWide) {
+                          setState(() => _isSidebarOpen = !_isSidebarOpen);
+                        } else {
+                          _scaffoldKey.currentState?.openDrawer();
+                        }
+                      },
+                    ),
+                    AgentScreen(
                       onOpenSidebar: () {
                         if (isDesktopOrWebWide) {
                           setState(() => _isSidebarOpen = !_isSidebarOpen);
@@ -268,6 +294,17 @@ class _GeminiMainLayoutState extends State<GeminiMainLayout> {
                 onTap: () {
                   if (isDrawer) Navigator.pop(context);
                   setState(() => _currentTabIndex = 0);
+                },
+              ),
+              _buildSidebarNavItem(
+                icon: Icons.terminal_outlined,
+                activeIcon: Icons.terminal,
+                label: 'Agent',
+                subtitle: 'Görev planı ve terminal',
+                isSelected: _currentTabIndex == 2,
+                onTap: () {
+                  if (isDrawer) Navigator.pop(context);
+                  setState(() => _currentTabIndex = 2);
                 },
               ),
               _buildSidebarNavItem(

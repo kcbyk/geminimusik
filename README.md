@@ -1,5 +1,31 @@
 # 🎵 Gemini Müzik & AI Sesli Asistan
 
+## Gemini kurulumu
+
+Gemini anahtarları kaynak kodda tutulmaz. Uygulamayı aşağıdaki gibi çalıştırın:
+
+```powershell
+flutter run --dart-define=GEMINI_API_KEY=YOUR_GEMINI_API_KEY
+```
+
+Yedek anahtar kullanmak isterseniz virgülle ayırın:
+
+```powershell
+flutter run --dart-define=GEMINI_API_KEYS=key1,key2
+```
+
+## Agent terminali
+
+Agent önce görev planı ve önerilen komutu gösterir. Komutlar yalnızca kullanıcı
+çalıştırdığında, sizin işlettiğiniz terminal yürütücüsüne gider:
+
+```powershell
+flutter run --dart-define=GEMINI_API_KEY=... --dart-define=AGENT_EXECUTOR_URL=https://sunucunuz/execute
+```
+
+Yürütücü, `POST` gövdesinde `{ "command": "..." }` almalı ve
+`{ "output": "..." }` döndürmelidir.
+
 Google Gemini 2.5 Flash destekli yapay zeka sohbeti, 320kbps yüksek kaliteli MP3 müzik indirme/çalma motoru ve **arka planda/kilit ekranında sesli komutla şarkı açabilen (Wake-Word) asistanı** bir araya getiren modern Flutter uygulaması.
 
 [![Build & Release APK](https://github.com/kcbyk/geminimusik/actions/workflows/build_apk.yml/badge.svg)](https://github.com/kcbyk/geminimusik/actions/workflows/build_apk.yml)

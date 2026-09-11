@@ -28,7 +28,8 @@ class MusicScreen extends StatefulWidget {
   State<MusicScreen> createState() => _MusicScreenState();
 }
 
-class _MusicScreenState extends State<MusicScreen> with SingleTickerProviderStateMixin {
+class _MusicScreenState extends State<MusicScreen>
+    with SingleTickerProviderStateMixin {
   TabController? _tabController;
   final TextEditingController _searchController = TextEditingController();
   final MusicService _musicService = MusicService();
@@ -119,7 +120,8 @@ class _MusicScreenState extends State<MusicScreen> with SingleTickerProviderStat
   }
 
   /// AI komutuyla arama + otomatik aksiyon (download veya play)
-  Future<void> _performSearchAndAct(String query, MusicAutoAction action) async {
+  Future<void> _performSearchAndAct(
+      String query, MusicAutoAction action) async {
     final cleanQuery = query.trim();
     if (cleanQuery.isEmpty) return;
 
@@ -168,7 +170,8 @@ class _MusicScreenState extends State<MusicScreen> with SingleTickerProviderStat
   bool _isDirectAudio(String? audioSource) {
     if (audioSource == null || audioSource.isEmpty) return false;
     // Yerel cihaz dosya yolu (örn. C:\, /data/..., /storage/...)
-    if (!audioSource.startsWith('http://') && !audioSource.startsWith('https://')) return true;
+    if (!audioSource.startsWith('http://') &&
+        !audioSource.startsWith('https://')) return true;
     // Web sayfaları doğrudan ses dosyası DEĞİLDİR
     if (audioSource.contains('youtube.com') ||
         audioSource.contains('youtu.be') ||
@@ -222,7 +225,8 @@ class _MusicScreenState extends State<MusicScreen> with SingleTickerProviderStat
 
       try {
         await _audioPlayer.stop();
-        if (audioSource!.startsWith('http://') || audioSource.startsWith('https://')) {
+        if (audioSource!.startsWith('http://') ||
+            audioSource.startsWith('https://')) {
           await _audioPlayer.play(UrlSource(audioSource));
         } else {
           await _audioPlayer.play(DeviceFileSource(audioSource));
@@ -307,7 +311,9 @@ class _MusicScreenState extends State<MusicScreen> with SingleTickerProviderStat
     // 3. YEDEK APİ (Render sunucusu dönüştürme ve sorgulama)
     try {
       Map<String, dynamic> jobData;
-      if (song != null && song.directUrl != null && song.directUrl!.isNotEmpty) {
+      if (song != null &&
+          song.directUrl != null &&
+          song.directUrl!.isNotEmpty) {
         jobData = await _musicService.convertUrl(
           url: song.directUrl!,
           title: title,
@@ -318,7 +324,8 @@ class _MusicScreenState extends State<MusicScreen> with SingleTickerProviderStat
       }
 
       final jobId = jobData['job_id'] as String;
-      _pollAndPlayWhenReady(jobId: jobId, title: title, artist: artist, coverUrl: coverUrl);
+      _pollAndPlayWhenReady(
+          jobId: jobId, title: title, artist: artist, coverUrl: coverUrl);
     } catch (e) {
       if (mounted) {
         setState(() => _isLoadingAudio = false);
@@ -358,7 +365,8 @@ class _MusicScreenState extends State<MusicScreen> with SingleTickerProviderStat
 
         if (durum == 'bitti' || (dosyaUrl != null && dosyaUrl.isNotEmpty)) {
           timer.cancel();
-          final streamUrl = _musicService.getFullDownloadUrl(dosyaUrl ?? '/api/v1/file/$dosyaAdi');
+          final streamUrl = _musicService
+              .getFullDownloadUrl(dosyaUrl ?? '/api/v1/file/$dosyaAdi');
 
           if (mounted && _currentlyPlayingTitle == title) {
             setState(() {
@@ -378,16 +386,19 @@ class _MusicScreenState extends State<MusicScreen> with SingleTickerProviderStat
     });
   }
 
-  Future<void> startDownload(String title, {String? coverUrl, SongItem? song, String? audioSource}) async {
+  Future<void> startDownload(String title,
+      {String? coverUrl, SongItem? song, String? audioSource}) async {
     final ytId = MusicService.extractYouTubeId(song?.directUrl) ??
         MusicService.extractYouTubeId(audioSource) ??
         MusicService.extractYouTubeId(song?.id);
 
     // Zaten indiriliyor mu kontrol et
     final existingTask = _downloads.cast<DownloadTask?>().firstWhere(
-      (t) => t != null && t.songTitle.toLowerCase().trim() == title.toLowerCase().trim(),
-      orElse: () => null,
-    );
+          (t) =>
+              t != null &&
+              t.songTitle.toLowerCase().trim() == title.toLowerCase().trim(),
+          orElse: () => null,
+        );
     if (existingTask != null &&
         (existingTask.status == DownloadStatus.downloading ||
             existingTask.status == DownloadStatus.converting ||
@@ -425,7 +436,8 @@ class _MusicScreenState extends State<MusicScreen> with SingleTickerProviderStat
               height: 18,
               child: CircularProgressIndicator(
                 strokeWidth: 2,
-                valueColor: AlwaysStoppedAnimation<Color>(GeminiColors.geminiCyan),
+                valueColor:
+                    AlwaysStoppedAnimation<Color>(GeminiColors.geminiCyan),
               ),
             ),
             const SizedBox(width: 12),
@@ -518,7 +530,9 @@ class _MusicScreenState extends State<MusicScreen> with SingleTickerProviderStat
         });
       }
       Map<String, dynamic> jobData;
-      if (song != null && song.directUrl != null && song.directUrl!.isNotEmpty) {
+      if (song != null &&
+          song.directUrl != null &&
+          song.directUrl!.isNotEmpty) {
         jobData = await _musicService.convertUrl(
           url: song.directUrl!,
           title: title,
@@ -662,7 +676,8 @@ class _MusicScreenState extends State<MusicScreen> with SingleTickerProviderStat
       builder: (ctx) => AlertDialog(
         backgroundColor: const Color(0xFF1E1F22),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Şarkıyı Sil', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        title: const Text('Şarkıyı Sil',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         content: Text(
           '"${task.songTitle}" şarkısını indirmelerden silmek istediğinize emin misiniz?',
           style: const TextStyle(color: Color(0xFFC4C7C5), fontSize: 14),
@@ -675,7 +690,8 @@ class _MusicScreenState extends State<MusicScreen> with SingleTickerProviderStat
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.redAccent,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
             ),
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text('Sil', style: TextStyle(color: Colors.white)),
@@ -697,7 +713,9 @@ class _MusicScreenState extends State<MusicScreen> with SingleTickerProviderStat
     }
 
     // Diskten dosyayı sil (eğer yerel dosyaysa ve web değilse)
-    if (!kIsWeb && task.filePath != null && !task.filePath!.startsWith('http')) {
+    if (!kIsWeb &&
+        task.filePath != null &&
+        !task.filePath!.startsWith('http')) {
       try {
         final file = File(task.filePath!);
         if (await file.exists()) {
@@ -764,7 +782,9 @@ class _MusicScreenState extends State<MusicScreen> with SingleTickerProviderStat
           unselectedLabelColor: GeminiColors.textMuted,
           tabs: const [
             Tab(icon: Icon(Icons.search, size: 18), text: 'Şarkı Ara'),
-            Tab(icon: Icon(Icons.library_music, size: 18), text: 'İndirilenler'),
+            Tab(
+                icon: Icon(Icons.library_music, size: 18),
+                text: 'İndirilenler'),
           ],
         ),
       ),
@@ -837,7 +857,8 @@ class _MusicScreenState extends State<MusicScreen> with SingleTickerProviderStat
                         inactiveTrackColor: const Color(0xFF2A2D32),
                         thumbColor: Colors.white,
                         overlayColor: const Color(0x334DAAF6),
-                        overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
+                        overlayShape:
+                            const RoundSliderOverlayShape(overlayRadius: 12),
                         trackShape: const RectangularSliderTrackShape(),
                       ),
                       child: Slider(
@@ -845,7 +866,8 @@ class _MusicScreenState extends State<MusicScreen> with SingleTickerProviderStat
                         max: maxDur > 0 ? maxDur : 1.0,
                         value: sliderVal,
                         onChanged: (val) {
-                          _audioPlayer.seek(Duration(milliseconds: val.toInt()));
+                          _audioPlayer
+                              .seek(Duration(milliseconds: val.toInt()));
                         },
                       ),
                     ),
@@ -868,7 +890,8 @@ class _MusicScreenState extends State<MusicScreen> with SingleTickerProviderStat
                                 color: const Color(0xFF22252A),
                                 border: Border.all(
                                   color: isPlaying
-                                      ? GeminiColors.geminiCyan.withValues(alpha: 0.45)
+                                      ? GeminiColors.geminiCyan
+                                          .withValues(alpha: 0.45)
                                       : const Color(0xFF33373E),
                                   width: 1.5,
                                 ),
@@ -880,7 +903,8 @@ class _MusicScreenState extends State<MusicScreen> with SingleTickerProviderStat
                                         width: 46,
                                         height: 46,
                                         fit: BoxFit.cover,
-                                        errorBuilder: (_, __, ___) => _defaultThumb(size: 46),
+                                        errorBuilder: (_, __, ___) =>
+                                            _defaultThumb(size: 46),
                                       )
                                     : _defaultThumb(size: 46),
                               ),
@@ -923,7 +947,8 @@ class _MusicScreenState extends State<MusicScreen> with SingleTickerProviderStat
                               const SizedBox(height: 3),
                               Row(
                                 children: [
-                                  if (_currentlyPlayingArtist != null && _currentlyPlayingArtist!.isNotEmpty) ...[
+                                  if (_currentlyPlayingArtist != null &&
+                                      _currentlyPlayingArtist!.isNotEmpty) ...[
                                     Flexible(
                                       child: Text(
                                         _currentlyPlayingArtist!,
@@ -938,7 +963,9 @@ class _MusicScreenState extends State<MusicScreen> with SingleTickerProviderStat
                                     const SizedBox(width: 6),
                                     const Text(
                                       '•',
-                                      style: TextStyle(color: GeminiColors.textMuted, fontSize: 11),
+                                      style: TextStyle(
+                                          color: GeminiColors.textMuted,
+                                          fontSize: 11),
                                     ),
                                     const SizedBox(width: 6),
                                   ],
@@ -948,7 +975,9 @@ class _MusicScreenState extends State<MusicScreen> with SingleTickerProviderStat
                                       color: GeminiColors.geminiCyan,
                                       fontSize: 11.5,
                                       fontWeight: FontWeight.w600,
-                                      fontFeatures: [FontFeature.tabularFigures()],
+                                      fontFeatures: [
+                                        FontFeature.tabularFigures()
+                                      ],
                                     ),
                                   ),
                                   Text(
@@ -956,7 +985,9 @@ class _MusicScreenState extends State<MusicScreen> with SingleTickerProviderStat
                                     style: const TextStyle(
                                       color: GeminiColors.textMuted,
                                       fontSize: 11.5,
-                                      fontFeatures: [FontFeature.tabularFigures()],
+                                      fontFeatures: [
+                                        FontFeature.tabularFigures()
+                                      ],
                                     ),
                                   ),
                                 ],
@@ -967,12 +998,16 @@ class _MusicScreenState extends State<MusicScreen> with SingleTickerProviderStat
 
                         // 10 Saniye Geri Sar
                         IconButton(
-                          icon: const Icon(Icons.replay_10_rounded, color: GeminiColors.textSecondary, size: 22),
+                          icon: const Icon(Icons.replay_10_rounded,
+                              color: GeminiColors.textSecondary, size: 22),
                           tooltip: '10 saniye geri',
                           splashRadius: 18,
                           onPressed: () {
-                            final newPos = _currentPosition - const Duration(seconds: 10);
-                            _audioPlayer.seek(newPos < Duration.zero ? Duration.zero : newPos);
+                            final newPos =
+                                _currentPosition - const Duration(seconds: 10);
+                            _audioPlayer.seek(newPos < Duration.zero
+                                ? Duration.zero
+                                : newPos);
                           },
                         ),
 
@@ -1006,14 +1041,17 @@ class _MusicScreenState extends State<MusicScreen> with SingleTickerProviderStat
                                   shape: BoxShape.circle,
                                   boxShadow: [
                                     BoxShadow(
-                                      color: const Color(0xFF4285F4).withValues(alpha: 0.35),
+                                      color: const Color(0xFF4285F4)
+                                          .withValues(alpha: 0.35),
                                       blurRadius: 12,
                                       offset: const Offset(0, 3),
                                     ),
                                   ],
                                 ),
                                 child: Icon(
-                                  isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                                  isPlaying
+                                      ? Icons.pause_rounded
+                                      : Icons.play_arrow_rounded,
                                   color: Colors.white,
                                   size: 26,
                                 ),
@@ -1024,12 +1062,16 @@ class _MusicScreenState extends State<MusicScreen> with SingleTickerProviderStat
 
                         // 10 Saniye İleri Sar
                         IconButton(
-                          icon: const Icon(Icons.forward_10_rounded, color: GeminiColors.textSecondary, size: 22),
+                          icon: const Icon(Icons.forward_10_rounded,
+                              color: GeminiColors.textSecondary, size: 22),
                           tooltip: '10 saniye ileri',
                           splashRadius: 18,
                           onPressed: () {
-                            final newPos = _currentPosition + const Duration(seconds: 10);
-                            _audioPlayer.seek(newPos > _totalDuration ? _totalDuration : newPos);
+                            final newPos =
+                                _currentPosition + const Duration(seconds: 10);
+                            _audioPlayer.seek(newPos > _totalDuration
+                                ? _totalDuration
+                                : newPos);
                           },
                         ),
 
@@ -1037,7 +1079,8 @@ class _MusicScreenState extends State<MusicScreen> with SingleTickerProviderStat
 
                         // Kapat Butonu
                         IconButton(
-                          icon: const Icon(Icons.close_rounded, color: GeminiColors.textMuted, size: 20),
+                          icon: const Icon(Icons.close_rounded,
+                              color: GeminiColors.textMuted, size: 20),
                           tooltip: 'Oynatıcıyı Kapat',
                           splashRadius: 18,
                           onPressed: () {
@@ -1075,7 +1118,8 @@ class _MusicScreenState extends State<MusicScreen> with SingleTickerProviderStat
                   borderRadius: BorderRadius.circular(28),
                   border: Border.all(color: GeminiColors.border, width: 1),
                 ),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                 child: Row(
                   children: [
                     const Icon(Icons.search,
@@ -1177,14 +1221,18 @@ class _MusicScreenState extends State<MusicScreen> with SingleTickerProviderStat
         _playerState == PlayerState.playing;
 
     final songTask = _downloads.cast<DownloadTask?>().firstWhere(
-      (t) => t != null && t.songTitle.toLowerCase().trim() == song.title.toLowerCase().trim(),
-      orElse: () => null,
-    );
+          (t) =>
+              t != null &&
+              t.songTitle.toLowerCase().trim() ==
+                  song.title.toLowerCase().trim(),
+          orElse: () => null,
+        );
     final isSongDownloading = songTask != null &&
         (songTask.status == DownloadStatus.downloading ||
             songTask.status == DownloadStatus.converting ||
             songTask.status == DownloadStatus.queued);
-    final isSongDownloaded = songTask != null && songTask.status == DownloadStatus.completed;
+    final isSongDownloaded =
+        songTask != null && songTask.status == DownloadStatus.completed;
 
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 4),
@@ -1199,8 +1247,7 @@ class _MusicScreenState extends State<MusicScreen> with SingleTickerProviderStat
         ),
       ),
       child: ListTile(
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
         // Şarkının üzerine basıldığında doğrudan çal/aç
         onTap: () {
           _playOrPauseSong(
@@ -1265,7 +1312,8 @@ class _MusicScreenState extends State<MusicScreen> with SingleTickerProviderStat
                         height: 24,
                         child: CircularProgressIndicator(
                           strokeWidth: 2.5,
-                          valueColor: AlwaysStoppedAnimation<Color>(GeminiColors.geminiCyan),
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                              GeminiColors.geminiCyan),
                         ),
                       ),
                       Icon(
@@ -1284,7 +1332,9 @@ class _MusicScreenState extends State<MusicScreen> with SingleTickerProviderStat
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: TextStyle(
-            color: isThisPlaying ? GeminiColors.geminiCyan : GeminiColors.textPrimary,
+            color: isThisPlaying
+                ? GeminiColors.geminiCyan
+                : GeminiColors.textPrimary,
             fontSize: 14.5,
             fontWeight: FontWeight.w600,
           ),
@@ -1331,7 +1381,9 @@ class _MusicScreenState extends State<MusicScreen> with SingleTickerProviderStat
             // Oynat / Duraklat Butonu
             IconButton(
               icon: Icon(
-                isThisPlaying ? Icons.pause_circle_filled : Icons.play_circle_fill,
+                isThisPlaying
+                    ? Icons.pause_circle_filled
+                    : Icons.play_circle_fill,
                 color: GeminiColors.geminiCyan,
                 size: 32,
               ),
@@ -1350,7 +1402,8 @@ class _MusicScreenState extends State<MusicScreen> with SingleTickerProviderStat
             // İndir / İndiriliyor / İndirildi Butonu
             if (isSongDownloading)
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
                 decoration: BoxDecoration(
                   color: GeminiColors.geminiCyan.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(20),
@@ -1367,7 +1420,8 @@ class _MusicScreenState extends State<MusicScreen> with SingleTickerProviderStat
                       height: 13,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(GeminiColors.geminiCyan),
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                            GeminiColors.geminiCyan),
                       ),
                     ),
                     SizedBox(width: 6),
@@ -1396,7 +1450,8 @@ class _MusicScreenState extends State<MusicScreen> with SingleTickerProviderStat
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: const [
-                    Icon(Icons.check_circle_rounded, color: Color(0xFF00E676), size: 14),
+                    Icon(Icons.check_circle_rounded,
+                        color: Color(0xFF00E676), size: 14),
                     SizedBox(width: 4),
                     Text(
                       'İndirildi',
@@ -1412,16 +1467,19 @@ class _MusicScreenState extends State<MusicScreen> with SingleTickerProviderStat
             else
               OutlinedButton.icon(
                 style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: GeminiColors.geminiBlue, width: 1),
+                  side: const BorderSide(
+                      color: GeminiColors.geminiBlue, width: 1),
                   foregroundColor: GeminiColors.geminiBlue,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(20),
                   ),
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 ),
                 icon: const Icon(Icons.download, size: 15),
                 label: const Text('İndir', style: TextStyle(fontSize: 12)),
-                onPressed: () => startDownload(song.title, coverUrl: song.thumbnailUrl, song: song),
+                onPressed: () => startDownload(song.title,
+                    coverUrl: song.thumbnailUrl, song: song),
               ),
           ],
         ),
@@ -1438,7 +1496,8 @@ class _MusicScreenState extends State<MusicScreen> with SingleTickerProviderStat
         borderRadius: isSquare ? BorderRadius.circular(14) : null,
         color: const Color(0xFF25262B),
       ),
-      child: Icon(Icons.music_note_rounded, color: GeminiColors.textMuted, size: size * 0.45),
+      child: Icon(Icons.music_note_rounded,
+          color: GeminiColors.textMuted, size: size * 0.45),
     );
   }
 
@@ -1533,7 +1592,8 @@ class _MusicScreenState extends State<MusicScreen> with SingleTickerProviderStat
                     ),
                     const SizedBox(width: 8),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 2),
                       decoration: BoxDecoration(
                         color: const Color(0xFF4285F4).withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(10),
@@ -1701,7 +1761,9 @@ class _MusicScreenState extends State<MusicScreen> with SingleTickerProviderStat
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            color: isPlaying ? GeminiColors.geminiCyan : Colors.white,
+                            color: isPlaying
+                                ? GeminiColors.geminiCyan
+                                : Colors.white,
                             fontSize: 14.5,
                             fontWeight: FontWeight.w600,
                             letterSpacing: -0.2,
@@ -1716,10 +1778,12 @@ class _MusicScreenState extends State<MusicScreen> with SingleTickerProviderStat
                                 padding: const EdgeInsets.symmetric(
                                     horizontal: 7, vertical: 2.5),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF4285F4).withValues(alpha: 0.12),
+                                  color: const Color(0xFF4285F4)
+                                      .withValues(alpha: 0.12),
                                   borderRadius: BorderRadius.circular(6),
                                   border: Border.all(
-                                    color: const Color(0xFF4285F4).withValues(alpha: 0.35),
+                                    color: const Color(0xFF4285F4)
+                                        .withValues(alpha: 0.35),
                                     width: 0.8,
                                   ),
                                 ),
@@ -1780,7 +1844,8 @@ class _MusicScreenState extends State<MusicScreen> with SingleTickerProviderStat
                                 padding: const EdgeInsets.symmetric(
                                     horizontal: 6, vertical: 2),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF4285F4).withValues(alpha: 0.18),
+                                  color: const Color(0xFF4285F4)
+                                      .withValues(alpha: 0.18),
                                   borderRadius: BorderRadius.circular(6),
                                 ),
                                 child: Text(
@@ -1817,91 +1882,107 @@ class _MusicScreenState extends State<MusicScreen> with SingleTickerProviderStat
                       ],
                     ),
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 6),
 
-                  // 3. SAĞ KONTROLLER
-                  if (isCompleted) ...[
-                    // Çal / Duraklat Butonu (Gemini Degrade Daire)
-                    Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(22),
-                        onTap: () => _playOrPauseSong(
-                          title: task.songTitle,
-                          coverUrl: task.thumbnailUrl,
-                          audioSource: task.filePath!,
-                        ),
-                        child: Container(
-                          width: 42,
-                          height: 42,
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: isPlaying
-                                  ? const [Color(0xFF00E5FF), Color(0xFF4285F4)]
-                                  : const [Color(0xFF4285F4), Color(0xFF9B72CB)],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(
-                                color: const Color(0xFF4285F4)
-                                    .withValues(alpha: isPlaying ? 0.5 : 0.3),
-                                blurRadius: 10,
-                                offset: const Offset(0, 2),
+                  // Dar ekranlarda kontroller ikinci satıra iner; kartın dışına taşmaz.
+                  Flexible(
+                    fit: FlexFit.loose,
+                    child: Wrap(
+                      alignment: WrapAlignment.end,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        // 3. SAĞ KONTROLLER
+                        if (isCompleted) ...[
+                          // Çal / Duraklat Butonu (Gemini Degrade Daire)
+                          Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(22),
+                              onTap: () => _playOrPauseSong(
+                                title: task.songTitle,
+                                coverUrl: task.thumbnailUrl,
+                                audioSource: task.filePath!,
                               ),
-                            ],
+                              child: Container(
+                                width: 42,
+                                height: 42,
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: isPlaying
+                                        ? const [
+                                            Color(0xFF00E5FF),
+                                            Color(0xFF4285F4)
+                                          ]
+                                        : const [
+                                            Color(0xFF4285F4),
+                                            Color(0xFF9B72CB)
+                                          ],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  ),
+                                  shape: BoxShape.circle,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: const Color(0xFF4285F4).withValues(
+                                          alpha: isPlaying ? 0.5 : 0.3),
+                                      blurRadius: 10,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: Icon(
+                                  isPlaying
+                                      ? Icons.pause_rounded
+                                      : Icons.play_arrow_rounded,
+                                  color: Colors.white,
+                                  size: 24,
+                                ),
+                              ),
+                            ),
                           ),
-                          child: Icon(
-                            isPlaying
-                                ? Icons.pause_rounded
-                                : Icons.play_arrow_rounded,
-                            color: Colors.white,
-                            size: 24,
+                          // Dosyayı Aç (Masaüstü/Mobil)
+                          if (!kIsWeb &&
+                              !task.filePath!.startsWith('http')) ...[
+                            _buildGlassActionBtn(
+                              icon: Icons.folder_open_rounded,
+                              tooltip: 'Dosyayı Aç',
+                              onTap: () => _openDownloadedFile(task.filePath!),
+                            ),
+                          ],
+                          // Sil Butonu
+                          _buildGlassActionBtn(
+                            icon: Icons.delete_outline_rounded,
+                            tooltip: 'İndirmeyi Sil',
+                            hoverColor: Colors.redAccent,
+                            onTap: () => _deleteDownload(task),
                           ),
-                        ),
-                      ),
+                        ] else if (isDownloading) ...[
+                          // İndirmeyi İptal/Sil
+                          _buildGlassActionBtn(
+                            icon: Icons.close_rounded,
+                            tooltip: 'İptal Et',
+                            onTap: () => _deleteDownload(task),
+                          ),
+                        ] else if (isError) ...[
+                          // Yeniden Dene Butonu
+                          _buildGlassActionBtn(
+                            icon: Icons.refresh_rounded,
+                            tooltip: 'Yeniden Dene',
+                            hoverColor: GeminiColors.geminiCyan,
+                            onTap: () => startDownload(task.songTitle,
+                                coverUrl: task.thumbnailUrl),
+                          ),
+                          _buildGlassActionBtn(
+                            icon: Icons.delete_outline_rounded,
+                            tooltip: 'Sil',
+                            onTap: () => _deleteDownload(task),
+                          ),
+                        ],
+                      ],
                     ),
-                    const SizedBox(width: 8),
-                    // Dosyayı Aç (Masaüstü/Mobil)
-                    if (!kIsWeb && !task.filePath!.startsWith('http')) ...[
-                      _buildGlassActionBtn(
-                        icon: Icons.folder_open_rounded,
-                        tooltip: 'Dosyayı Aç',
-                        onTap: () => _openDownloadedFile(task.filePath!),
-                      ),
-                      const SizedBox(width: 6),
-                    ],
-                    // Sil Butonu
-                    _buildGlassActionBtn(
-                      icon: Icons.delete_outline_rounded,
-                      tooltip: 'İndirmeyi Sil',
-                      hoverColor: Colors.redAccent,
-                      onTap: () => _deleteDownload(task),
-                    ),
-                  ] else if (isDownloading) ...[
-                    // İndirmeyi İptal/Sil
-                    _buildGlassActionBtn(
-                      icon: Icons.close_rounded,
-                      tooltip: 'İptal Et',
-                      onTap: () => _deleteDownload(task),
-                    ),
-                  ] else if (isError) ...[
-                    // Yeniden Dene Butonu
-                    _buildGlassActionBtn(
-                      icon: Icons.refresh_rounded,
-                      tooltip: 'Yeniden Dene',
-                      hoverColor: GeminiColors.geminiCyan,
-                      onTap: () => startDownload(task.songTitle,
-                          coverUrl: task.thumbnailUrl),
-                    ),
-                    const SizedBox(width: 6),
-                    _buildGlassActionBtn(
-                      icon: Icons.delete_outline_rounded,
-                      tooltip: 'Sil',
-                      onTap: () => _deleteDownload(task),
-                    ),
-                  ],
+                  ),
                 ],
               ),
             ),

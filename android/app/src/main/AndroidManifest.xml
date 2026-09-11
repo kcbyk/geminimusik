@@ -26,6 +26,21 @@
             android:name="com.pravera.flutter_foreground_task.service.ForegroundService"
             android:foregroundServiceType="microphone|mediaPlayback"
             android:exported="false" />
+        <service
+            android:name=".JarvisVoiceInteractionService"
+            android:permission="android.permission.BIND_VOICE_INTERACTION"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.service.voice.VoiceInteractionService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.voice_interaction"
+                android:resource="@xml/interaction_service" />
+        </service>
+        <service
+            android:name=".JarvisVoiceInteractionSessionService"
+            android:permission="android.permission.BIND_VOICE_INTERACTION"
+            android:exported="true" />
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -43,6 +58,25 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+        </activity>
+        <!-- Jarvis şeffaf overlay activity - sadece Jarvis paneli gösterir -->
+        <activity
+            android:name=".JarvisOverlayActivity"
+            android:theme="@style/JarvisOverlayTheme"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
+            android:launchMode="singleTask"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode">
+            <intent-filter>
+                <action android:name="android.intent.action.ASSIST" />
+                <action android:name="android.intent.action.VOICE_ASSIST" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+            <meta-data
+                android:name="io.flutter.embedding.android.TransparencyMode"
+                android:value="transparent"/>
         </activity>
         <meta-data
             android:name="flutterEmbedding"

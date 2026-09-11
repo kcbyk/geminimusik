@@ -19,7 +19,8 @@ class ChatScreen extends StatefulWidget {
   final Function(String songQuery)? onNavigateToMusicPlay;
   final VoidCallback? onOpenSidebar;
   final String? activeSessionId;
-  final void Function(String sessionId, List<ChatMessage> messages)? onSessionChanged;
+  final void Function(String sessionId, List<ChatMessage> messages)?
+      onSessionChanged;
 
   const ChatScreen({
     super.key,
@@ -33,7 +34,6 @@ class ChatScreen extends StatefulWidget {
   @override
   State<ChatScreen> createState() => _ChatScreenState();
 }
-
 
 class _ChatScreenState extends State<ChatScreen> {
   TextEditingController? _textControllerField;
@@ -51,7 +51,8 @@ class _ChatScreenState extends State<ChatScreen> {
 
   final List<ChatMessage> _messages = [];
   bool _isLoading = false;
-  List<Map<String, String>>? _activeSearchingSources; // Google AI Modu: Arama anında gösterilen kaynaklar
+  List<Map<String, String>>?
+      _activeSearchingSources; // Google AI Modu: Arama anında gösterilen kaynaklar
   String _selectedMode = 'general'; // 'general' or 'projects'
 
   String _extractDomain(String url) {
@@ -150,7 +151,6 @@ class _ChatScreenState extends State<ChatScreen> {
     _editingControllerField ??= TextEditingController();
     _scrollControllerField ??= ScrollController();
     ChatHistoryService.instance.init();
-    WebSearchService.instance.warmup();
     // Eğer başlangıçta bir oturum ID'si verilmişse yükle
     if (widget.activeSessionId != null) {
       _loadSession(widget.activeSessionId!);
@@ -188,7 +188,8 @@ class _ChatScreenState extends State<ChatScreen> {
   /// Mevcut sohbeti history'ye kaydeder
   Future<void> _saveCurrentSession() async {
     if (_messages.isEmpty) return;
-    final sessionId = _currentSessionId ?? DateTime.now().millisecondsSinceEpoch.toString();
+    final sessionId =
+        _currentSessionId ?? DateTime.now().millisecondsSinceEpoch.toString();
     _currentSessionId = sessionId;
 
     // Başlık: ilk kullanıcı mesajının ilk 40 karakteri
@@ -209,8 +210,6 @@ class _ChatScreenState extends State<ChatScreen> {
     await ChatHistoryService.instance.saveSession(session);
     widget.onSessionChanged?.call(sessionId, List.from(_messages));
   }
-
-
 
   @override
   void dispose() {
@@ -258,7 +257,8 @@ class _ChatScreenState extends State<ChatScreen> {
 
       if (!_isSpeechInitialized) return;
 
-      final targetController = forEditing ? _editingController : _textController;
+      final targetController =
+          forEditing ? _editingController : _textController;
       final initialText = targetController.text.trim();
 
       if (mounted) {
@@ -352,11 +352,13 @@ class _ChatScreenState extends State<ChatScreen> {
     });
     _scrollToBottom();
 
-    await _sendToGemini(text, imageBytes: attachedImage, mimeType: attachedMime);
+    await _sendToGemini(text,
+        imageBytes: attachedImage, mimeType: attachedMime);
   }
 
   /// Mesajı yerinde değiştirir, ardındaki eski yapay zeka cevabını siler ve Gemini'a yeniden istek atar
-  Future<void> _handleEditAndResend(ChatMessage targetMsg, String newContent) async {
+  Future<void> _handleEditAndResend(
+      ChatMessage targetMsg, String newContent) async {
     if (_isLoading) return;
 
     final trimmedText = newContent.trim();
@@ -431,16 +433,19 @@ class _ChatScreenState extends State<ChatScreen> {
       if (explicitQuery != null && explicitQuery.isNotEmpty) {
         wasWebSearch = true;
         executedSearchQuery = explicitQuery;
-        final results = await WebSearchService.instance.search(explicitQuery, limit: 5, includeDetail: false);
+        final results = await WebSearchService.instance
+            .search(explicitQuery, limit: 5, includeDetail: false);
         if (results.isNotEmpty) {
-          collectedSources = results.map((r) => {'title': r.title, 'url': r.url}).toList();
+          collectedSources =
+              results.map((r) => {'title': r.title, 'url': r.url}).toList();
         }
         if (mounted) {
           setState(() {
             _activeSearchingSources = collectedSources;
           });
         }
-        final webContext = WebSearchService.instance.formatForPrompt(results, explicitQuery);
+        final webContext =
+            WebSearchService.instance.formatForPrompt(results, explicitQuery);
         currentPrompt = results.isNotEmpty
             ? '$promptWithMode\n\n$webContext'
             : '$promptWithMode\n\n[WEB_ARAMA_SONUCLARI]\nArama yapıldı ancak sonuç boş döndü. Lütfen kullanıcının sorusunu doğrudan yanıtla.\n[/WEB_ARAMA_SONUCLARI]';
@@ -455,7 +460,8 @@ class _ChatScreenState extends State<ChatScreen> {
       );
 
       // 2. OTOMATİK MOD: Gemini güncel bilgi gerektiğini anlayıp [ACTION:SEARCH:...] üretti mi?
-      final searchMatch = RegExp(r'\[ACTION:SEARCH:(.+?)\]').firstMatch(response.text);
+      final searchMatch =
+          RegExp(r'\[ACTION:SEARCH:(.+?)\]').firstMatch(response.text);
       if (searchMatch != null) {
         final query = searchMatch.group(1)?.trim() ?? '';
         if (query.isNotEmpty) {
@@ -463,9 +469,11 @@ class _ChatScreenState extends State<ChatScreen> {
           executedSearchQuery = query;
 
           // Hızlı ve zengin sonuç (5 kaynak)
-          final results = await WebSearchService.instance.search(query, limit: 5, includeDetail: false);
+          final results = await WebSearchService.instance
+              .search(query, limit: 5, includeDetail: false);
           if (results.isNotEmpty) {
-            collectedSources = results.map((r) => {'title': r.title, 'url': r.url}).toList();
+            collectedSources =
+                results.map((r) => {'title': r.title, 'url': r.url}).toList();
           }
 
           if (mounted) {
@@ -474,7 +482,8 @@ class _ChatScreenState extends State<ChatScreen> {
             });
           }
 
-          final webContext = WebSearchService.instance.formatForPrompt(results, query);
+          final webContext =
+              WebSearchService.instance.formatForPrompt(results, query);
           final enrichedPrompt = results.isNotEmpty
               ? '$promptWithMode\n\n$webContext'
               : '$promptWithMode\n\n[WEB_ARAMA_SONUCLARI]\nSorgu: "$query"\nArama yapıldı. Lütfen kullanıcının sorusuna doğrudan ve net bir yanıt ver. Asla [ACTION:SEARCH] üretme!\n[/WEB_ARAMA_SONUCLARI]';
@@ -483,19 +492,26 @@ class _ChatScreenState extends State<ChatScreen> {
             prompt: enrichedPrompt,
             history: historyList,
             model: _selectedModel,
+            imageBytes: imageBytes,
+            mimeType: mimeType,
           );
         }
       }
 
       // ACTION etiketlerini parse et
       final rawText = response.text;
-      final actionMatch = RegExp(r'\[ACTION:(DOWNLOAD|PLAY|STOP|HIDE_PLAYER|SHOW_PLAYER)(?::(.+?))?\]').firstMatch(rawText);
-      var cleanContent = rawText.replaceAll(RegExp(r'\[ACTION:[^\]]+\]'), '').trim();
+      final actionMatch = RegExp(
+              r'\[ACTION:(DOWNLOAD|PLAY|STOP|HIDE_PLAYER|SHOW_PLAYER)(?::(.+?))?\]')
+          .firstMatch(rawText);
+      var cleanContent =
+          rawText.replaceAll(RegExp(r'\[ACTION:[^\]]+\]'), '').trim();
       if (cleanContent.isEmpty) {
         if (wasWebSearch) {
-          cleanContent = 'İnternet araması tamamlandı ancak yanıt derlenemedi. Lütfen tekrar deneyin.';
+          cleanContent =
+              'İnternet araması tamamlandı ancak yanıt derlenemedi. Lütfen tekrar deneyin.';
         } else {
-          cleanContent = rawText.trim().isNotEmpty ? rawText.trim() : 'İşlem tamamlandı.';
+          cleanContent =
+              rawText.trim().isNotEmpty ? rawText.trim() : 'İşlem tamamlandı.';
         }
       }
 
@@ -544,10 +560,14 @@ class _ChatScreenState extends State<ChatScreen> {
     } catch (e) {
       if (mounted) {
         setState(() {
+          debugPrint('Gemini sohbet hatası: $e');
+          final userMessage = e is GeminiConfigurationException
+              ? e.message
+              : 'Yanıt şu an alınamadı. Bağlantınızı kontrol edip tekrar deneyin.';
           _messages.add(
             ChatMessage(
               id: DateTime.now().millisecondsSinceEpoch.toString(),
-              content: 'Bir hata oluştu:\n$e',
+              content: userMessage,
               isUser: false,
               timestamp: DateTime.now(),
               usedModel: 'Hata',
@@ -562,7 +582,6 @@ class _ChatScreenState extends State<ChatScreen> {
       }
     }
   }
-
 
   /// Düzenlenen mesajı yerinde günceller ve Gemini'dan taze yanıt alır
   void _submitEditedPrompt() {
@@ -596,7 +615,6 @@ class _ChatScreenState extends State<ChatScreen> {
     widget.onSessionChanged?.call('', []);
   }
 
-
   /// Kullanıcı mesajına basılı tuttuğunda açılan menü
   void _showUserMessageOptions(ChatMessage msg) {
     showModalBottomSheet(
@@ -627,22 +645,28 @@ class _ChatScreenState extends State<ChatScreen> {
                 // Düzenle Seçeneği -> Fotoğraftaki tam ekran düzenleme sekmesini açar!
                 ListTile(
                   dense: true,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16)),
                   leading: Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
                       color: Colors.white.withOpacity(0.08),
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(Icons.edit_outlined, color: Colors.white, size: 20),
+                    child: const Icon(Icons.edit_outlined,
+                        color: Colors.white, size: 20),
                   ),
                   title: const Text(
                     'Düzenle',
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 14),
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14),
                   ),
                   subtitle: const Text(
                     'Metni tam ekranda düzenleyip yeniden gönderin',
-                    style: TextStyle(color: GeminiColors.textMuted, fontSize: 12),
+                    style:
+                        TextStyle(color: GeminiColors.textMuted, fontSize: 12),
                   ),
                   onTap: () {
                     Navigator.pop(ctx);
@@ -662,22 +686,28 @@ class _ChatScreenState extends State<ChatScreen> {
                 // Kopyala Seçeneği
                 ListTile(
                   dense: true,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16)),
                   leading: Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
                       color: Colors.white.withOpacity(0.08),
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(Icons.copy_outlined, color: GeminiColors.geminiCyan, size: 20),
+                    child: const Icon(Icons.copy_outlined,
+                        color: GeminiColors.geminiCyan, size: 20),
                   ),
                   title: const Text(
                     'Metni Kopyala',
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 14),
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14),
                   ),
                   subtitle: const Text(
                     'Panoya kopyalar',
-                    style: TextStyle(color: GeminiColors.textMuted, fontSize: 12),
+                    style:
+                        TextStyle(color: GeminiColors.textMuted, fontSize: 12),
                   ),
                   onTap: () {
                     Navigator.pop(ctx);
@@ -728,7 +758,8 @@ class _ChatScreenState extends State<ChatScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                   child: Row(
                     children: const [
                       GeminiSparkleIcon(size: 20),
@@ -745,11 +776,11 @@ class _ChatScreenState extends State<ChatScreen> {
                   ),
                 ),
                 const Divider(color: Color(0xFF2A2A2E), height: 20),
-
                 _buildModelOption(
                   modelId: 'gemini-2.5-flash',
                   title: 'Gemini 2.5 Flash',
-                  subtitle: 'Hızlı, akıllı ve güçlü — günlük kullanım için ideal',
+                  subtitle:
+                      'Hızlı, akıllı ve güçlü — günlük kullanım için ideal',
                   tag: 'Önerilen',
                   tagColor: GeminiColors.geminiCyan,
                   onTap: () {
@@ -760,13 +791,12 @@ class _ChatScreenState extends State<ChatScreen> {
                     Navigator.pop(ctx);
                   },
                 ),
-
                 const SizedBox(height: 6),
-
                 _buildModelOption(
                   modelId: 'gemini-3.1-flash-lite',
                   title: 'Gemini 3.1 Flash-Lite',
-                  subtitle: 'Ultra hızlı ve hafif — basit sorular ve anlık yanıtlar',
+                  subtitle:
+                      'Ultra hızlı ve hafif — basit sorular ve anlık yanıtlar',
                   tag: 'Ultra Hızlı',
                   tagColor: Colors.amberAccent,
                   onTap: () {
@@ -777,13 +807,12 @@ class _ChatScreenState extends State<ChatScreen> {
                     Navigator.pop(ctx);
                   },
                 ),
-
                 const SizedBox(height: 6),
-
                 _buildModelOption(
                   modelId: 'gemini-3.6-flash',
                   title: 'Gemini 3.6 Flash',
-                  subtitle: 'En gelişmiş ve derin akıl yürütme — karmaşık görevler için',
+                  subtitle:
+                      'En gelişmiş ve derin akıl yürütme — karmaşık görevler için',
                   tag: 'Güçlü',
                   tagColor: GeminiColors.geminiPurple,
                   onTap: () {
@@ -936,7 +965,8 @@ class _ChatScreenState extends State<ChatScreen> {
                         Navigator.pop(ctx);
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
-                            content: Text('Drive entegrasyonu: Galeri veya Dosyalar üzerinden seçebilirsiniz.'),
+                            content: Text(
+                                'Drive entegrasyonu: Galeri veya Dosyalar üzerinden seçebilirsiniz.'),
                             behavior: SnackBarBehavior.floating,
                             duration: Duration(seconds: 2),
                           ),
@@ -959,7 +989,8 @@ class _ChatScreenState extends State<ChatScreen> {
                 subtitle: 'Oluşturun ve düzenleyin',
                 onTap: () {
                   Navigator.pop(ctx);
-                  _textController.text = 'Bana modern ve sanatsal bir görüntü çiz/tasarla: ';
+                  _textController.text =
+                      'Bana modern ve sanatsal bir görüntü çiz/tasarla: ';
                   _textController.selection = TextSelection.fromPosition(
                     TextPosition(offset: _textController.text.length),
                   );
@@ -973,7 +1004,8 @@ class _ChatScreenState extends State<ChatScreen> {
                 subtitle: 'Fikirlerinizi hayata geçirin',
                 onTap: () {
                   Navigator.pop(ctx);
-                  _textController.text = 'Bana çarpıcı bir video senaryosu ve sahne planı yaz: ';
+                  _textController.text =
+                      'Bana çarpıcı bir video senaryosu ve sahne planı yaz: ';
                   _textController.selection = TextSelection.fromPosition(
                     TextPosition(offset: _textController.text.length),
                   );
@@ -990,7 +1022,8 @@ class _ChatScreenState extends State<ChatScreen> {
                   if (widget.onNavigateToMusicDownload != null) {
                     widget.onNavigateToMusicDownload!('');
                   } else {
-                    _textController.text = 'Bana popüler müzikler öner veya indir: ';
+                    _textController.text =
+                        'Bana popüler müzikler öner veya indir: ';
                   }
                 },
               ),
@@ -1003,7 +1036,8 @@ class _ChatScreenState extends State<ChatScreen> {
                 onTap: () {
                   Navigator.pop(ctx);
                   setState(() {
-                    _selectedMode = _selectedMode == 'projects' ? 'general' : 'projects';
+                    _selectedMode =
+                        _selectedMode == 'projects' ? 'general' : 'projects';
                   });
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
@@ -1051,7 +1085,8 @@ class _ChatScreenState extends State<ChatScreen> {
             width: 68,
             height: 68,
             decoration: const BoxDecoration(
-              color: Color(0xFF2B2C2E), // Orijinal fotoğraftaki buton dolgu rengi
+              color:
+                  Color(0xFF2B2C2E), // Orijinal fotoğraftaki buton dolgu rengi
               shape: BoxShape.circle,
             ),
             child: Icon(icon, color: const Color(0xFFE3E3E3), size: 26),
@@ -1118,9 +1153,8 @@ class _ChatScreenState extends State<ChatScreen> {
           children: [
             // 1. KATMAN: Mesajlar / İçerik
             Positioned.fill(
-              child: hasMessages
-                  ? _buildChatList()
-                  : _buildGeminiWelcomeScreen(),
+              child:
+                  hasMessages ? _buildChatList() : _buildGeminiWelcomeScreen(),
             ),
 
             // 2. KATMAN: ÜST KARARTI / GÖLGE EFEKTİ
@@ -1252,137 +1286,142 @@ class _ChatScreenState extends State<ChatScreen> {
                   child: _TikTokStyleScrubBar(svc: svc),
                 ),
                 Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                child: Row(
-                  children: [
-                    // Albüm kapağı
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: svc.currentCover != null
-                          ? Image.network(
-                              svc.currentCover!,
-                              width: 42,
-                              height: 42,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => const _MusicIcon(),
-                            )
-                          : const _MusicIcon(),
-                    ),
-                    const SizedBox(width: 12),
-                    // Şarkı bilgisi
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            svc.currentTitle ?? '',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          if (svc.currentArtist != null)
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  child: Row(
+                    children: [
+                      // Albüm kapağı
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: svc.currentCover != null
+                            ? Image.network(
+                                svc.currentCover!,
+                                width: 42,
+                                height: 42,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) =>
+                                    const _MusicIcon(),
+                              )
+                            : const _MusicIcon(),
+                      ),
+                      const SizedBox(width: 12),
+                      // Şarkı bilgisi
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
                             Text(
-                              svc.currentArtist!,
-                              style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.55),
-                                fontSize: 11,
+                              svc.currentTitle ?? '',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
                               ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
-                        ],
-                      ),
-                    ),
-                    // Play / Pause butonu
-                    GestureDetector(
-                      onTap: isLoading ? null : () => svc.pauseOrResume(),
-                      child: Container(
-                        width: 38,
-                        height: 38,
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFF4285F4), Color(0xFF9B72CB)],
-                          ),
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFF4285F4).withValues(alpha: 0.4),
-                              blurRadius: 8,
-                            ),
+                            if (svc.currentArtist != null)
+                              Text(
+                                svc.currentArtist!,
+                                style: TextStyle(
+                                  color: Colors.white.withValues(alpha: 0.55),
+                                  fontSize: 11,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                           ],
                         ),
-                        child: isLoading
-                            ? const Padding(
-                                padding: EdgeInsets.all(10),
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white,
-                                ),
-                              )
-                            : Icon(
-                                isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                                color: Colors.white,
-                                size: 22,
+                      ),
+                      // Play / Pause butonu
+                      GestureDetector(
+                        onTap: isLoading ? null : () => svc.pauseOrResume(),
+                        child: Container(
+                          width: 38,
+                          height: 38,
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF4285F4), Color(0xFF9B72CB)],
+                            ),
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF4285F4)
+                                    .withValues(alpha: 0.4),
+                                blurRadius: 8,
                               ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    // Oynatıcıyı Gizle / Küçült butonu
-                    Tooltip(
-                      message: 'Oynatıcıyı Gizle (Müzik çalmaya devam eder)',
-                      child: GestureDetector(
-                        onTap: () => svc.hidePlayer(),
-                        child: Container(
-                          width: 34,
-                          height: 34,
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.08),
-                            shape: BoxShape.circle,
+                            ],
                           ),
-                          child: const Icon(
-                            Icons.keyboard_arrow_down_rounded,
-                            color: Colors.white70,
-                            size: 20,
+                          child: isLoading
+                              ? const Padding(
+                                  padding: EdgeInsets.all(10),
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : Icon(
+                                  isPlaying
+                                      ? Icons.pause_rounded
+                                      : Icons.play_arrow_rounded,
+                                  color: Colors.white,
+                                  size: 22,
+                                ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      // Oynatıcıyı Gizle / Küçült butonu
+                      Tooltip(
+                        message: 'Oynatıcıyı Gizle (Müzik çalmaya devam eder)',
+                        child: GestureDetector(
+                          onTap: () => svc.hidePlayer(),
+                          child: Container(
+                            width: 34,
+                            height: 34,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.08),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.keyboard_arrow_down_rounded,
+                              color: Colors.white70,
+                              size: 20,
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    // Şarkıyı Kapat butonu
-                    Tooltip(
-                      message: 'Şarkıyı Kapat',
-                      child: GestureDetector(
-                        onTap: () => svc.stop(),
-                        child: Container(
-                          width: 34,
-                          height: 34,
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.08),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.close_rounded,
-                            color: Colors.white70,
-                            size: 18,
+                      const SizedBox(width: 8),
+                      // Şarkıyı Kapat butonu
+                      Tooltip(
+                        message: 'Şarkıyı Kapat',
+                        child: GestureDetector(
+                          onTap: () => svc.stop(),
+                          child: Container(
+                            width: 34,
+                            height: 34,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.08),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.close_rounded,
+                              color: Colors.white70,
+                              size: 18,
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
-      );
-    },
-  );
-}
+        );
+      },
+    );
+  }
 
   /// Fotoğraftaki Birebir Orijinal Gemini Düzenleme Sekmesi (media_1788799295971.jpg)
   Widget _buildExactEditingOverlay() {
@@ -1403,9 +1442,11 @@ class _ChatScreenState extends State<ChatScreen> {
                 });
               },
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFE8EAED), // Fotoğraftaki açık beyaz-gri hap
+                  color: const Color(
+                      0xFFE8EAED), // Fotoğraftaki açık beyaz-gri hap
                   borderRadius: BorderRadius.circular(24),
                 ),
                 child: Row(
@@ -1473,7 +1514,8 @@ class _ChatScreenState extends State<ChatScreen> {
                       borderRadius: BorderRadius.circular(12),
                       onTap: _showGeminiToolsSheet,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
                           color: GeminiColors.geminiPurple.withOpacity(0.18),
                           borderRadius: BorderRadius.circular(12),
@@ -1511,7 +1553,9 @@ class _ChatScreenState extends State<ChatScreen> {
                   IconButton(
                     icon: AnimatedContainer(
                       duration: const Duration(milliseconds: 200),
-                      padding: _isListening ? const EdgeInsets.all(4) : EdgeInsets.zero,
+                      padding: _isListening
+                          ? const EdgeInsets.all(4)
+                          : EdgeInsets.zero,
                       decoration: _isListening
                           ? BoxDecoration(
                               color: Colors.redAccent.withOpacity(0.25),
@@ -1520,16 +1564,21 @@ class _ChatScreenState extends State<ChatScreen> {
                           : null,
                       child: Icon(
                         _isListening ? Icons.mic : Icons.mic_none_outlined,
-                        color: _isListening ? Colors.redAccent : const Color(0xFF8E918F),
+                        color: _isListening
+                            ? Colors.redAccent
+                            : const Color(0xFF8E918F),
                         size: 26,
                       ),
                     ),
-                    tooltip: _isListening ? 'Dinlemeyi durdur' : 'Sesle yaz (Türkçe)',
+                    tooltip: _isListening
+                        ? 'Dinlemeyi durdur'
+                        : 'Sesle yaz (Türkçe)',
                     onPressed: () => _toggleSpeechRecognition(forEditing: true),
                   ),
                   const SizedBox(width: 8),
                   Material(
-                    color: const Color(0xFF2A5BB5), // Fotoğraftaki canlı mavi gönder butonu
+                    color: const Color(
+                        0xFF2A5BB5), // Fotoğraftaki canlı mavi gönder butonu
                     shape: const CircleBorder(),
                     child: InkWell(
                       customBorder: const CircleBorder(),
@@ -1538,7 +1587,8 @@ class _ChatScreenState extends State<ChatScreen> {
                         width: 52,
                         height: 52,
                         alignment: Alignment.center,
-                        child: const Icon(Icons.arrow_upward, color: Colors.white, size: 24),
+                        child: const Icon(Icons.arrow_upward,
+                            color: Colors.white, size: 24),
                       ),
                     ),
                   ),
@@ -1575,11 +1625,13 @@ class _ChatScreenState extends State<ChatScreen> {
                 borderRadius: BorderRadius.circular(20),
                 onTap: _showModelPickerMenu,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   decoration: BoxDecoration(
                     color: Colors.black.withOpacity(0.55),
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: Colors.white.withOpacity(0.08), width: 0.8),
+                    border: Border.all(
+                        color: Colors.white.withOpacity(0.08), width: 0.8),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -1626,9 +1678,15 @@ class _ChatScreenState extends State<ChatScreen> {
                   return Padding(
                     padding: const EdgeInsets.only(right: 6),
                     child: _buildBlackCircularButton(
-                      icon: isHidden ? Icons.music_note_rounded : Icons.music_off_rounded,
-                      tooltip: isHidden ? 'Müzik Oynatıcısını Aç' : 'Müzik Oynatıcısını Gizle',
-                      iconColor: isHidden ? GeminiColors.geminiCyan : const Color(0xFFE3E3E3),
+                      icon: isHidden
+                          ? Icons.music_note_rounded
+                          : Icons.music_off_rounded,
+                      tooltip: isHidden
+                          ? 'Müzik Oynatıcısını Aç'
+                          : 'Müzik Oynatıcısını Gizle',
+                      iconColor: isHidden
+                          ? GeminiColors.geminiCyan
+                          : const Color(0xFFE3E3E3),
                       onPressed: () {
                         if (isHidden) {
                           svc.showPlayer();
@@ -1686,7 +1744,8 @@ class _ChatScreenState extends State<ChatScreen> {
         padding: EdgeInsets.zero,
         constraints: BoxConstraints.tightFor(width: size, height: size),
         visualDensity: VisualDensity.compact,
-        icon: Icon(icon, color: iconColor ?? const Color(0xFFE3E3E3), size: iconSize),
+        icon: Icon(icon,
+            color: iconColor ?? const Color(0xFFE3E3E3), size: iconSize),
         tooltip: tooltip,
         onPressed: onPressed,
       ),
@@ -1751,7 +1810,8 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Widget _buildGeminiThinking() {
-    final hasSearchingSources = _activeSearchingSources != null && _activeSearchingSources!.isNotEmpty;
+    final hasSearchingSources =
+        _activeSearchingSources != null && _activeSearchingSources!.isNotEmpty;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 12),
       child: Row(
@@ -1798,7 +1858,8 @@ class _ChatScreenState extends State<ChatScreen> {
                         final domain = _extractDomain(url);
                         return Container(
                           margin: const EdgeInsets.only(right: 8),
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 6),
                           decoration: BoxDecoration(
                             color: const Color(0xFF1E1F20),
                             borderRadius: BorderRadius.circular(16),
@@ -1813,7 +1874,8 @@ class _ChatScreenState extends State<ChatScreen> {
                               _buildFavicon(domain, 14),
                               const SizedBox(width: 6),
                               ConstrainedBox(
-                                constraints: const BoxConstraints(maxWidth: 130),
+                                constraints:
+                                    const BoxConstraints(maxWidth: 130),
                                 child: Text(
                                   title.isNotEmpty ? title : domain,
                                   maxLines: 1,
@@ -1861,7 +1923,8 @@ class _ChatScreenState extends State<ChatScreen> {
               borderRadius: BorderRadius.circular(22),
               onLongPress: () => _showUserMessageOptions(msg),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 decoration: BoxDecoration(
                   color: const Color(0xFF282A2C), // Orijinal Gemini gri tonu
                   borderRadius: BorderRadius.circular(22),
@@ -1937,12 +2000,15 @@ class _ChatScreenState extends State<ChatScreen> {
                           if (msg.isWebSearch) ...[
                             if (msg.usedModel != null) const SizedBox(width: 8),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 2),
                               decoration: BoxDecoration(
-                                color: GeminiColors.geminiBlue.withOpacity(0.15),
+                                color:
+                                    GeminiColors.geminiBlue.withOpacity(0.15),
                                 borderRadius: BorderRadius.circular(6),
                                 border: Border.all(
-                                  color: GeminiColors.geminiBlue.withOpacity(0.4),
+                                  color:
+                                      GeminiColors.geminiBlue.withOpacity(0.4),
                                   width: 0.8,
                                 ),
                               ),
@@ -1956,7 +2022,8 @@ class _ChatScreenState extends State<ChatScreen> {
                                   ),
                                   const SizedBox(width: 4),
                                   Text(
-                                    msg.searchQuery != null && msg.searchQuery!.isNotEmpty
+                                    msg.searchQuery != null &&
+                                            msg.searchQuery!.isNotEmpty
                                         ? 'Web: ${msg.searchQuery}'
                                         : 'Web Araması',
                                     style: const TextStyle(
@@ -2014,10 +2081,10 @@ class _ChatScreenState extends State<ChatScreen> {
                         color: const Color(0xFF141414),
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      listBullet: const TextStyle(color: GeminiColors.geminiBlue),
+                      listBullet:
+                          const TextStyle(color: GeminiColors.geminiBlue),
                     ),
                   ),
-
                   if (msg.isMusicCommand &&
                       widget.onNavigateToMusicDownload != null) ...[
                     const SizedBox(height: 14),
@@ -2078,7 +2145,6 @@ class _ChatScreenState extends State<ChatScreen> {
                       ),
                     ),
                   ],
-
                   const SizedBox(height: 10),
                   Row(
                     children: [
@@ -2098,17 +2164,26 @@ class _ChatScreenState extends State<ChatScreen> {
                       ),
                       // Sesli Dinle (Erkek Jarvis Sesi)
                       ValueListenableBuilder<bool>(
-                        valueListenable: JarvisTtsService.instance.isSpeakingNotifier,
+                        valueListenable:
+                            JarvisTtsService.instance.isSpeakingNotifier,
                         builder: (context, isSpeaking, _) {
-                          final isThisMsg = JarvisTtsService.instance.isSpeakingSpecificText(msg.content);
+                          final isThisMsg = JarvisTtsService.instance
+                              .isSpeakingSpecificText(msg.content);
                           return IconButton(
                             icon: Icon(
-                              isThisMsg ? Icons.volume_up_rounded : Icons.volume_up_outlined,
+                              isThisMsg
+                                  ? Icons.volume_up_rounded
+                                  : Icons.volume_up_outlined,
                               size: 17,
-                              color: isThisMsg ? const Color(0xFF00F2FE) : GeminiColors.textMuted,
+                              color: isThisMsg
+                                  ? const Color(0xFF00F2FE)
+                                  : GeminiColors.textMuted,
                             ),
-                            tooltip: isThisMsg ? 'Seslendirmeyi Durdur' : 'Sesli Dinle (Jarvis Erkek Sesi)',
-                            onPressed: () => JarvisTtsService.instance.toggleSpeak(msg.content),
+                            tooltip: isThisMsg
+                                ? 'Seslendirmeyi Durdur'
+                                : 'Sesli Dinle (Jarvis Erkek Sesi)',
+                            onPressed: () => JarvisTtsService.instance
+                                .toggleSpeak(msg.content),
                           );
                         },
                       ),
@@ -2154,7 +2229,8 @@ class _ChatScreenState extends State<ChatScreen> {
                 decoration: BoxDecoration(
                   color: const Color(0xFF1E1F20),
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.white.withOpacity(0.12), width: 1),
+                  border: Border.all(
+                      color: Colors.white.withOpacity(0.12), width: 1),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withOpacity(0.4),
@@ -2185,7 +2261,8 @@ class _ChatScreenState extends State<ChatScreen> {
                             color: Colors.black87,
                             shape: BoxShape.circle,
                           ),
-                          child: const Icon(Icons.close, color: Colors.white, size: 14),
+                          child: const Icon(Icons.close,
+                              color: Colors.white, size: 14),
                         ),
                       ),
                     ),
@@ -2226,7 +2303,9 @@ class _ChatScreenState extends State<ChatScreen> {
                           padding: const EdgeInsets.all(8.0),
                           child: Icon(
                             Icons.add,
-                            color: isProjects ? GeminiColors.geminiPurple : const Color(0xFFE3E3E3),
+                            color: isProjects
+                                ? GeminiColors.geminiPurple
+                                : const Color(0xFFE3E3E3),
                             size: 26,
                           ),
                         ),
@@ -2241,7 +2320,8 @@ class _ChatScreenState extends State<ChatScreen> {
                         onTap: _showGeminiToolsSheet,
                         child: Container(
                           margin: const EdgeInsets.only(right: 6),
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
                             color: GeminiColors.geminiPurple.withOpacity(0.18),
                             borderRadius: BorderRadius.circular(12),
@@ -2293,15 +2373,22 @@ class _ChatScreenState extends State<ChatScreen> {
                               ? "Dinleniyor... Konuşabilirsiniz"
                               : (hasImage
                                   ? "Fotoğraf hakkında soru sor..."
-                                  : (isProjects ? "Proje sor..." : "Gemini'a sor...")),
+                                  : (isProjects
+                                      ? "Proje sor..."
+                                      : "Gemini'a sor...")),
                           hintStyle: TextStyle(
-                            color: _isListening ? Colors.redAccent.withOpacity(0.9) : const Color(0xFF8E918F),
+                            color: _isListening
+                                ? Colors.redAccent.withOpacity(0.9)
+                                : const Color(0xFF8E918F),
                             fontSize: 15,
-                            fontWeight: _isListening ? FontWeight.w500 : FontWeight.normal,
+                            fontWeight: _isListening
+                                ? FontWeight.w500
+                                : FontWeight.normal,
                           ),
                           border: InputBorder.none,
                           isDense: true,
-                          contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                          contentPadding:
+                              const EdgeInsets.symmetric(vertical: 8),
                         ),
                       ),
                     ),
@@ -2311,7 +2398,9 @@ class _ChatScreenState extends State<ChatScreen> {
                     child: IconButton(
                       icon: AnimatedContainer(
                         duration: const Duration(milliseconds: 200),
-                        padding: _isListening ? const EdgeInsets.all(4) : EdgeInsets.zero,
+                        padding: _isListening
+                            ? const EdgeInsets.all(4)
+                            : EdgeInsets.zero,
                         decoration: _isListening
                             ? BoxDecoration(
                                 color: Colors.redAccent.withOpacity(0.25),
@@ -2320,12 +2409,17 @@ class _ChatScreenState extends State<ChatScreen> {
                             : null,
                         child: Icon(
                           _isListening ? Icons.mic : Icons.mic_none_outlined,
-                          color: _isListening ? Colors.redAccent : const Color(0xFFE3E3E3),
+                          color: _isListening
+                              ? Colors.redAccent
+                              : const Color(0xFFE3E3E3),
                           size: 22,
                         ),
                       ),
-                      tooltip: _isListening ? 'Dinlemeyi durdur' : 'Sesle yaz (Türkçe)',
-                      onPressed: () => _toggleSpeechRecognition(forEditing: false),
+                      tooltip: _isListening
+                          ? 'Dinlemeyi durdur'
+                          : 'Sesle yaz (Türkçe)',
+                      onPressed: () =>
+                          _toggleSpeechRecognition(forEditing: false),
                     ),
                   ),
                   Padding(
@@ -2340,9 +2434,12 @@ class _ChatScreenState extends State<ChatScreen> {
                           width: 44,
                           height: 44,
                           alignment: Alignment.center,
-                          child: (_textController.text.trim().isNotEmpty || hasImage)
-                              ? const Icon(Icons.arrow_upward, color: Colors.white, size: 20)
-                              : const Icon(Icons.graphic_eq, color: Colors.white, size: 20),
+                          child: (_textController.text.trim().isNotEmpty ||
+                                  hasImage)
+                              ? const Icon(Icons.arrow_upward,
+                                  color: Colors.white, size: 20)
+                              : const Icon(Icons.graphic_eq,
+                                  color: Colors.white, size: 20),
                         ),
                       ),
                     ),
@@ -2373,7 +2470,8 @@ class _MusicIcon extends StatelessWidget {
         color: const Color(0xFF2A2B30),
         borderRadius: BorderRadius.circular(8),
       ),
-      child: const Icon(Icons.music_note_rounded, color: Color(0xFF4285F4), size: 22),
+      child: const Icon(Icons.music_note_rounded,
+          color: Color(0xFF4285F4), size: 22),
     );
   }
 }
@@ -2432,12 +2530,14 @@ class _TikTokStyleScrubBarState extends State<_TikTokStyleScrubBar> {
           onHorizontalDragStart: (details) {
             setState(() {
               _isDragging = true;
-              _dragRatio = (details.localPosition.dx / barWidth).clamp(0.0, 1.0);
+              _dragRatio =
+                  (details.localPosition.dx / barWidth).clamp(0.0, 1.0);
             });
           },
           onHorizontalDragUpdate: (details) {
             setState(() {
-              _dragRatio = (details.localPosition.dx / barWidth).clamp(0.0, 1.0);
+              _dragRatio =
+                  (details.localPosition.dx / barWidth).clamp(0.0, 1.0);
             });
           },
           onHorizontalDragEnd: (details) {
@@ -2478,7 +2578,8 @@ class _TikTokStyleScrubBarState extends State<_TikTokStyleScrubBar> {
                       boxShadow: [
                         if (_isDragging)
                           BoxShadow(
-                            color: const Color(0xFF4285F4).withValues(alpha: 0.8),
+                            color:
+                                const Color(0xFF4285F4).withValues(alpha: 0.8),
                             blurRadius: 8,
                           ),
                       ],
@@ -2488,7 +2589,8 @@ class _TikTokStyleScrubBarState extends State<_TikTokStyleScrubBar> {
                 // TikTok tarzı sürükleme yuvarlağı (Thumb)
                 if (_isDragging || displayRatio > 0)
                   Positioned(
-                    left: (displayRatio * (barWidth - 8)) - (_isDragging ? 7 : 4),
+                    left:
+                        (displayRatio * (barWidth - 8)) - (_isDragging ? 7 : 4),
                     top: _isDragging ? -5 : -2.5,
                     child: Container(
                       width: _isDragging ? 16 : 8.5,
@@ -2509,10 +2611,12 @@ class _TikTokStyleScrubBarState extends State<_TikTokStyleScrubBar> {
                 // TikTok tarzı kaydırırken üstte beliren canlı süre balonu
                 if (_isDragging && totalSec > 0)
                   Positioned(
-                    left: ((displayRatio * barWidth) - 48).clamp(0.0, barWidth - 96),
+                    left: ((displayRatio * barWidth) - 48)
+                        .clamp(0.0, barWidth - 96),
                     top: -28,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
                         color: const Color(0xFF16171A),
                         borderRadius: BorderRadius.circular(10),
@@ -2559,7 +2663,8 @@ class _ExpandableSourcesWidget extends StatefulWidget {
   });
 
   @override
-  State<_ExpandableSourcesWidget> createState() => _ExpandableSourcesWidgetState();
+  State<_ExpandableSourcesWidget> createState() =>
+      _ExpandableSourcesWidgetState();
 }
 
 class _ExpandableSourcesWidgetState extends State<_ExpandableSourcesWidget> {
@@ -2604,7 +2709,8 @@ class _ExpandableSourcesWidgetState extends State<_ExpandableSourcesWidget> {
                   ),
                   const SizedBox(width: 4),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
                     decoration: BoxDecoration(
                       color: const Color(0xFF2A2B30),
                       borderRadius: BorderRadius.circular(8),
@@ -2635,7 +2741,8 @@ class _ExpandableSourcesWidgetState extends State<_ExpandableSourcesWidget> {
                   return Container(
                     margin: const EdgeInsets.only(right: 8),
                     constraints: const BoxConstraints(maxWidth: 160),
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
                     decoration: BoxDecoration(
                       color: const Color(0xFF1E1F20),
                       borderRadius: BorderRadius.circular(12),
