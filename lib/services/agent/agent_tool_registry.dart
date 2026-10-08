@@ -3,6 +3,7 @@ import 'tools/device_tool.dart';
 import 'tools/file_tools.dart';
 import 'tools/memory_tool.dart';
 import 'tools/music_tool.dart';
+import 'tools/permissions_tool.dart';
 import 'tools/phone_tool.dart';
 import 'tools/remote_terminal_tool.dart';
 import 'tools/shell_tool.dart';
@@ -33,6 +34,7 @@ class AgentToolRegistryBuilder {
       MusicTool(),
       PhoneTool(),
       DeviceTool(),
+      PermissionsTool(),
       if (RemoteTerminalTool.isAvailable) RemoteTerminalTool(),
     ]);
     return registry;
@@ -45,6 +47,7 @@ class AgentToolRegistryBuilder {
       MusicTool(),
       PhoneTool(),
       DeviceTool(),
+      PermissionsTool(),
       WebTool(),
     ]);
     return registry;
@@ -65,6 +68,7 @@ class AgentToolRegistryBuilder {
       ShellTool(),
       RunTestTool(),
       TermuxTool(),
+      PermissionsTool(),
       if (RemoteTerminalTool.isAvailable) RemoteTerminalTool(),
     ]);
     return registry;

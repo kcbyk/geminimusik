@@ -9,6 +9,7 @@ import 'screens/jarvis_overlay_page.dart';
 import 'theme/gemini_colors.dart';
 import 'widgets/gemini_sparkle.dart';
 import 'services/agent/agent_controller.dart';
+import 'services/agent/agent_permissions.dart';
 import 'services/chat_history_service.dart';
 import 'services/jarvis_brain_service.dart';
 import 'services/voice_assistant_service.dart';
@@ -16,6 +17,8 @@ import 'widgets/jarvis_siri_overlay.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Ajan bir yetenek için izin gerektiğinde kullanıcıdan kendisi istesin.
+  wireAgentPermissions();
   runApp(const GeminiApp());
   // Ajan çalışma alanını (dosya/kabuk kökü) ilk görevden önce hazırla.
   unawaited(AgentController().initialize());
