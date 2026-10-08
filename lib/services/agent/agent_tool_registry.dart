@@ -1,9 +1,12 @@
 import 'agent_models.dart';
+import 'tools/device_tool.dart';
 import 'tools/file_tools.dart';
+import 'tools/memory_tool.dart';
 import 'tools/music_tool.dart';
 import 'tools/phone_tool.dart';
 import 'tools/remote_terminal_tool.dart';
 import 'tools/shell_tool.dart';
+import 'tools/termux_tool.dart';
 import 'tools/todo_tool.dart';
 import 'tools/web_tool.dart';
 
@@ -16,6 +19,7 @@ class AgentToolRegistryBuilder {
     final registry = AgentToolRegistry();
     registry.registerAll([
       TodoTool(),
+      MemoryTool(),
       ListDirTool(),
       ReadFileTool(),
       WriteFileTool(),
@@ -24,9 +28,11 @@ class AgentToolRegistryBuilder {
       SearchFilesTool(),
       ShellTool(),
       RunTestTool(),
+      TermuxTool(),
       WebTool(),
       MusicTool(),
       PhoneTool(),
+      DeviceTool(),
       if (RemoteTerminalTool.isAvailable) RemoteTerminalTool(),
     ]);
     return registry;
@@ -38,6 +44,7 @@ class AgentToolRegistryBuilder {
     registry.registerAll([
       MusicTool(),
       PhoneTool(),
+      DeviceTool(),
       WebTool(),
     ]);
     return registry;
@@ -48,6 +55,7 @@ class AgentToolRegistryBuilder {
     final registry = AgentToolRegistry();
     registry.registerAll([
       TodoTool(),
+      MemoryTool(),
       ListDirTool(),
       ReadFileTool(),
       WriteFileTool(),
@@ -56,6 +64,7 @@ class AgentToolRegistryBuilder {
       SearchFilesTool(),
       ShellTool(),
       RunTestTool(),
+      TermuxTool(),
       if (RemoteTerminalTool.isAvailable) RemoteTerminalTool(),
     ]);
     return registry;

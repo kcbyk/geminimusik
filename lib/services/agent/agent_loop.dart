@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import '../gemini_service.dart';
+import 'agent_memory.dart';
 import 'agent_models.dart';
 import 'agent_paths.dart';
 import 'agent_prompts.dart';
@@ -63,13 +64,18 @@ class AgentLoop {
     this.maxSteps = 25,
     this.onEvent,
     this.onNeedsApproval,
+    AgentMemory? memory,
   })  : _model = model,
         _registry = registry,
-        _systemPrompt = systemPrompt ?? AgentPrompts.agent;
+        _systemPrompt = systemPrompt ?? AgentPrompts.agent,
+        _memory = memory;
 
   final ModelCaller _model;
   final AgentToolRegistry _registry;
   final String _systemPrompt;
+
+  /// Verilirse görev geçmişi modele taşınır ve her görev sonunda kaydedilir.
+  final AgentMemory? _memory;
   final int maxSteps;
   final void Function(AgentEvent event)? onEvent;
   final ApprovalHandler? onNeedsApproval;
@@ -140,16 +146,18 @@ class AgentLoop {
         _modelCalls++;
         _totalTokens += turn.totalTokens;
 
+        if (!turn.hasCalls) {
+          // Son tur: bu metin zaten "görev bitti" kartında gösterilecek,
+          // ayrıca bir "AJAN" kartı açmak aynı içeriği iki kez yazıyordu.
+          finalText = turn.text.trim();
+          break;
+        }
+
         if (turn.text.trim().isNotEmpty) {
           _emit(AgentEvent(
             type: AgentEventType.modelText,
             message: turn.text.trim(),
           ));
-        }
-
-        if (!turn.hasCalls) {
-          finalText = turn.text.trim();
-          break;
         }
 
         contents.add(
@@ -188,6 +196,7 @@ class AgentLoop {
       final message = 'Ajan hatası: $error';
       _emit(AgentEvent(type: AgentEventType.error, message: message));
       stopwatch.stop();
+      await _remember(task, message);
       return AgentRunResult(
         answer: message,
         steps: steps,
@@ -205,6 +214,8 @@ class AgentLoop {
         ? (_cancelled ? 'Görev iptal edildi.' : 'Ajan yanıt üretmedi.')
         : finalText;
 
+    await _remember(task, answer);
+
     _emit(AgentEvent(
       type: AgentEventType.done,
       message: answer,
@@ -221,6 +232,19 @@ class AgentLoop {
       hitStepLimit: hitLimit,
       elapsed: stopwatch.elapsed,
     );
+  }
+
+  /// Görevi kalıcı günlüğe işler. Hata görevin kendisini bozmasın.
+  Future<void> _remember(String task, String answer) async {
+    final memory = _memory;
+    if (memory == null) return;
+    try {
+      await memory.rememberTurn(
+        task: task,
+        answer: answer,
+        toolsUsed: _steps.map((s) => s.toolName).toList(),
+      );
+    } catch (_) {}
   }
 
   Future<Map<String, dynamic>> _execute(

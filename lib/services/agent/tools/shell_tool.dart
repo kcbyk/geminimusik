@@ -5,6 +5,25 @@ import 'dart:io';
 import '../agent_models.dart';
 import '../agent_paths.dart';
 
+/// [ShellTool.runRaw] sonucu. Politika kontrolü yapmadan çalışan ham çıktı.
+class ShellRunResult {
+  final int exitCode;
+  final String stdout;
+  final String stderr;
+  final bool timedOut;
+  final Duration elapsed;
+
+  const ShellRunResult({
+    required this.exitCode,
+    required this.stdout,
+    required this.stderr,
+    required this.timedOut,
+    required this.elapsed,
+  });
+
+  bool get ok => !timedOut && exitCode == 0;
+}
+
 /// Telefonda **gerçek** kabuk. Android'de `/system/bin/sh` (toybox) her zaman
 /// vardır; Termux kurulmuşsa `$PREFIX/bin` ve `python`/`node` gibi araçlar da
 /// PATH'e eklenir. Uygulama kendi veri klasörüne ve (izin verildiyse)
@@ -26,9 +45,10 @@ class ShellTool extends AgentTool {
 
   @override
   String get description =>
-      'Telefonda gerçek kabuk komutu çalıştırır (sh). Dosya listeleme, taşıma, '
-      'kopyalama, arama, indirme, script çalıştırma ve test etme için kullanılır. '
-      'Çıktı (stdout+stderr) ve exit code döner. Uzun süren işler için timeout_seconds ver.';
+      'Telefonun kendi kabuğunda (Android: /system/bin/sh, toybox) komut çalıştırır. '
+      'ls, cat, mkdir, cp, mv, rm, grep, wc, du, df, ps, getprop, id, date, sleep gibi '
+      'komutlar kullanılabilir. command: çalıştırılacak komut satırı. '
+      'timeout: saniye (1-300). working_dir: çalışma klasörü.';
 
   @override
   Map<String, dynamic> get parameters => {
@@ -37,103 +57,98 @@ class ShellTool extends AgentTool {
           'command': {
             'type': 'STRING',
             'description':
-                'Çalıştırılacak kabuk komutu. Birden çok komutu && veya ; ile birleştirebilirsin.',
+                'Kabuk komutu. Zincirleme için && veya ; kullanabilirsin.',
           },
-          'cwd': {
+          'timeout': {
+            'type': 'NUMBER',
+            'description': 'Zaman aşımı (saniye). Varsayılan 60.',
+          },
+          'working_dir': {
             'type': 'STRING',
-            'description':
-                'Çalışma dizini (boş bırakılırsa ajan çalışma alanı).',
-          },
-          'timeout_seconds': {
-            'type': 'INTEGER',
-            'description':
-                'En fazla kaç saniye beklensin (varsayılan 60, en çok 300).',
+            'description': 'Çalışma klasörü. Varsayılan ajan çalışma alanı.',
           },
         },
         'required': ['command'],
       };
 
-  @override
-  bool get requiresApproval => false; // Karar CommandRiskAnalyzer'a bırakıldı.
+  /// Politika kontrolü yapmadan komut çalıştıran düşük seviye yardımcı.
+  /// `device` ve `termux` araçları bunu kullanır; kullanıcı onayı ve risk
+  /// analizi [AgentLoop] tarafında zaten uygulanıyor.
+  static Future<ShellRunResult> runRaw(
+    String command, {
+    String? workingDirectory,
+    Map<String, String>? environment,
+    Duration timeout = const Duration(seconds: 45),
+  }) async {
+    final stopwatch = Stopwatch()..start();
+    final process = await Process.start(
+      shellBinary,
+      ['-c', command],
+      workingDirectory: workingDirectory,
+      environment: environment ?? const {},
+      includeParentEnvironment: true,
+      runInShell: false,
+    );
+
+    final stdoutFuture = process.stdout.transform(utf8.decoder).join();
+    final stderrFuture = process.stderr.transform(utf8.decoder).join();
+
+    var exitCode = -1;
+    var timedOut = false;
+    try {
+      exitCode = await process.exitCode.timeout(timeout);
+    } on TimeoutException {
+      timedOut = true;
+      process.kill(ProcessSignal.sigkill);
+      try {
+        exitCode = await process.exitCode.timeout(const Duration(seconds: 3));
+      } on TimeoutException {
+        exitCode = -1;
+      }
+    }
+    stopwatch.stop();
+
+    return ShellRunResult(
+      exitCode: exitCode,
+      stdout: await stdoutFuture,
+      stderr: await stderrFuture,
+      timedOut: timedOut,
+      elapsed: stopwatch.elapsed,
+    );
+  }
 
   @override
   Future<ToolResult> invoke(Map<String, dynamic> args) async {
     final command = (args['command'] as String?)?.trim() ?? '';
     if (command.isEmpty) {
-      return ToolResult.error('Komut boş olamaz.');
-    }
-    if (command.length > 4000) {
-      return ToolResult.error('Komut en fazla 4000 karakter olabilir.');
+      return ToolResult.error('`command` alanı boş olamaz.');
     }
 
-    final verdict = const CommandRiskAnalyzer().analyze(command);
+    final timeout = _parseTimeout(args['timeout'] ?? args['timeout_seconds']);
+    final workDir = _resolveWorkDir(args['working_dir'] as String?);
+
+    const analyzer = CommandRiskAnalyzer();
+    final verdict = analyzer.analyze(command);
     if (verdict.isBlocked) {
-      return ToolResult.error(verdict.reason);
+      return ToolResult.error('Bu komut cihazda engellendi: ${verdict.reason}');
     }
 
-    final policy = AgentPathPolicy.instance;
-    final Directory workDir;
-    try {
-      final cwdArg = args['cwd'] as String?;
-      workDir = Directory(policy.resolve(
-          cwdArg == null || cwdArg.isEmpty ? policy.effectiveRoot : cwdArg));
-      if (!workDir.existsSync()) {
-        return ToolResult.error('Çalışma dizini yok: ${workDir.path}');
-      }
-    } on PathPolicyException catch (error) {
-      return ToolResult.error(error.message);
-    }
-
-    final timeoutSeconds =
-        (args['timeout_seconds'] as num?)?.toInt() ?? _defaultTimeout.inSeconds;
-    final timeout = Duration(seconds: timeoutSeconds.clamp(1, 300));
-
-    final stopwatch = Stopwatch()..start();
-    final process = await Process.start(
-      shellBinary,
-      ['-c', command],
+    final run = await runRaw(
+      command,
       workingDirectory: workDir.path,
       environment: _environment(),
-      includeParentEnvironment: true,
-      runInShell: false,
+      timeout: timeout,
     );
+    final timedOut = run.timedOut;
+    final exitCode = run.exitCode;
 
-    final stdoutBuffer = StringBuffer();
-    final stderrBuffer = StringBuffer();
-    var timedOut = false;
-
-    final stdoutDone = process.stdout
-        .transform(utf8.decoder)
-        .listen(stdoutBuffer.write)
-        .asFuture<void>();
-    final stderrDone = process.stderr
-        .transform(utf8.decoder)
-        .listen(stderrBuffer.write)
-        .asFuture<void>();
-
-    try {
-      await process.exitCode.timeout(timeout);
-    } on TimeoutException {
-      timedOut = true;
-      process.kill(ProcessSignal.sigkill);
-      try {
-        await process.exitCode.timeout(const Duration(seconds: 3));
-      } catch (_) {}
-    }
-    await Future.wait([stdoutDone, stderrDone]).timeout(
-      const Duration(seconds: 5),
-      onTimeout: () => <void>[],
-    );
-    stopwatch.stop();
-
-    final exitCode = timedOut ? -1 : await process.exitCode;
-    final out = _clip(stdoutBuffer.toString());
-    final err = _clip(stderrBuffer.toString());
+    final out = _clip(run.stdout);
+    final err = _clip(run.stderr);
 
     final buffer = StringBuffer()
       ..writeln('cwd: ${workDir.path}')
       ..writeln('exit_code: $exitCode')
-      ..writeln('süre: ${stopwatch.elapsedMilliseconds} ms');
+      ..writeln('süre: ${run.elapsed.inMilliseconds} ms');
     if (timedOut) {
       buffer.writeln(
           'UYARI: komut ${timeout.inSeconds} saniyede bitmedi, durduruldu.');
@@ -150,6 +165,29 @@ class ShellTool extends AgentTool {
 
     final ok = !timedOut && exitCode == 0;
     return ToolResult(buffer.toString().trim(), ok: ok);
+  }
+
+  Duration _parseTimeout(Object? raw) {
+    final parsed = raw is num
+        ? raw.toInt()
+        : int.tryParse('${raw ?? ''}'.trim()) ?? _defaultTimeout.inSeconds;
+    final seconds = parsed.clamp(1, 300);
+    return Duration(seconds: seconds);
+  }
+
+  Directory _resolveWorkDir(String? requested) {
+    if (requested == null || requested.trim().isEmpty) {
+      final root = AgentPathPolicy.instance.effectiveRoot;
+      final dir = Directory(root);
+      if (!dir.existsSync()) dir.createSync(recursive: true);
+      return dir;
+    }
+    final path = AgentPathPolicy.instance.resolve(requested.trim());
+    final dir = Directory(path);
+    if (!dir.existsSync()) {
+      throw PathPolicyException('Çalışma klasörü yok: ${dir.path}');
+    }
+    return dir;
   }
 
   Map<String, String> _environment() {

@@ -6,6 +6,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../gemini_service.dart';
 import 'agent_loop.dart';
+import 'agent_memory.dart';
 import 'agent_models.dart';
 import 'agent_paths.dart';
 import 'agent_prompts.dart';
@@ -26,6 +27,9 @@ class AgentController extends ChangeNotifier {
   static final AgentController _instance = AgentController._internal();
 
   final GeminiService _gemini;
+
+  /// Tur arası kalıcı hafıza (görev günlüğü + notlar).
+  final AgentMemory memory = AgentMemory();
 
   final List<AgentEvent> events = [];
   final List<AgentStep> steps = [];
@@ -112,6 +116,9 @@ class AgentController extends ChangeNotifier {
     // Devam eden bir plan varsa (ör. Jarvis başlattı) ekran açılır açılmaz görünsün.
     plan = AgentPlanStore.instance.items;
 
+    // Hafıza diskten okunur: uygulama yeniden açıldığında ajan geçmişi hatırlar.
+    await memory.load();
+
     try {
       final dir = await getExternalStorageDirectory() ??
           await getApplicationDocumentsDirectory();
@@ -151,6 +158,7 @@ class AgentController extends ChangeNotifier {
       maxSteps: _maxSteps,
       onEvent: _handleEvent,
       onNeedsApproval: _requestApproval,
+      memory: memory,
     );
     _loop = loop;
 
@@ -191,9 +199,22 @@ class AgentController extends ChangeNotifier {
       registry: AgentToolRegistryBuilder.voice(),
       systemPrompt: AgentPrompts.voice,
       maxSteps: maxSteps,
+      memory: memory,
     );
     final result = await loop.run(task);
     return result.answer;
+  }
+
+  /// Hafıza özeti (durum çubuğunda gösterilir).
+  String get memorySummary =>
+      memory.hasNotes || memory.turnCount > 0
+          ? '${memory.turnCount} görev · ${memory.notes.split('\n').where((l) => l.trim().isNotEmpty).length} not'
+          : '';
+
+  Future<void> clearMemory() async {
+    await memory.clearHistory();
+    await memory.clearNotes();
+    notifyListeners();
   }
 
   Future<ModelTurn> _callModel(

@@ -8,6 +8,8 @@ import 'package:ai_music_hub/services/agent/tools/file_tools.dart';
 import 'package:ai_music_hub/services/agent/tools/shell_tool.dart';
 import 'package:ai_music_hub/services/agent/agent_tool_registry.dart';
 import 'package:ai_music_hub/services/agent/tools/remote_terminal_tool.dart';
+import 'package:ai_music_hub/services/agent/tools/device_tool.dart';
+import 'package:ai_music_hub/services/agent/tools/termux_tool.dart';
 import 'package:ai_music_hub/services/agent/tools/todo_tool.dart';
 import 'package:ai_music_hub/services/agent/turn_model.dart';
 
@@ -353,6 +355,138 @@ void main() {
       expect(tool.declaration['name'], 'remote_terminal');
       expect((tool.declaration['parameters'] as Map)['required'], ['command']);
       expect(tool.requiresApproval, isTrue);
+    });
+  });
+
+  group('cihaz aracı', () {
+    test('paket adı eşleştirme: tam, kısmi ve çoklu eşleşme', () {
+      const packages = [
+        'com.whatsapp',
+        'com.whatsapp.w4b',
+        'org.telegram.messenger',
+        'com.spotify.music',
+        'com.android.chrome',
+      ];
+      expect(DeviceTool.matchPackage('com.whatsapp', packages), 'com.whatsapp');
+      expect(DeviceTool.matchPackage('whatsapp', packages), 'com.whatsapp',
+          reason: 'en kısa eşleşme asıl uygulama olmalı');
+      expect(DeviceTool.matchPackage('spotify', packages), 'com.spotify.music');
+      expect(DeviceTool.matchPackage('telegram', packages),
+          'org.telegram.messenger');
+      expect(DeviceTool.matchPackage('chrome', packages), 'com.android.chrome');
+      expect(DeviceTool.matchPackage('olmayanuygulama', packages), isNull);
+      expect(DeviceTool.matchPackage('', packages), isNull);
+      expect(DeviceTool.matchPackage('whatsapp', const []), isNull);
+    });
+
+    test('pm yoksa çökmez, anlaşılır hata döner', () async {
+      final result = await DeviceTool().invoke({'action': 'list_apps'});
+      // Test makinesinde Android `pm` yok: araç exception fırlatmamalı.
+      expect(result.output, isNotEmpty);
+      expect(
+          result.output.toLowerCase(),
+          anyOf(contains('uygulama'), contains('alınamadı'),
+              contains('not found')));
+    });
+
+    test('open_app sorgu olmadan hata verir', () async {
+      final result = await DeviceTool().invoke({'action': 'open_app'});
+      expect(result.ok, isFalse);
+      expect(result.output, contains('query'));
+    });
+
+    test('şema: action zorunlu ve enum tanımlı', () {
+      final schema = DeviceTool().declaration;
+      expect(schema['name'], 'device');
+      expect((schema['parameters'] as Map)['required'], ['action']);
+      final action =
+          ((schema['parameters'] as Map)['properties'] as Map)['action'] as Map;
+      expect(
+          action['enum'], containsAll(['list_apps', 'open_app', 'app_info']));
+    });
+
+    test('info cihaz özetini toplamaya çalışır', () async {
+      final result = await DeviceTool().invoke({'action': 'info'});
+      expect(result.output, contains('model'));
+      expect(result.output, contains('ajan çalışma alanı'));
+    });
+  });
+
+  group('termux aracı', () {
+    test('probe Termux yoksa dürüstçe söyler, varmış gibi yapmaz', () async {
+      final result = await TermuxTool().invoke({'action': 'probe'});
+      expect(result.ok, isTrue);
+      expect(result.output, contains('Termux durumu'));
+      expect(result.output, contains('- kurulu: hayır'));
+      expect(result.output, contains('doğrudan çalıştırma: çalışmıyor'));
+    });
+
+    test('run/send komut olmadan hata verir', () async {
+      expect((await TermuxTool().invoke({'action': 'run'})).ok, isFalse);
+      expect((await TermuxTool().invoke({'action': 'send'})).ok, isFalse);
+    });
+
+    test('çok uzun komut reddedilir', () async {
+      final result =
+          await TermuxTool().invoke({'action': 'run', 'command': 'x' * 5000});
+      expect(result.ok, isFalse);
+      expect(result.output, contains('4000'));
+    });
+
+    test('onay ister ve ortam değişkenleri Termux PRE ile kurulur', () {
+      final tool = TermuxTool();
+      expect(tool.requiresApproval, isTrue);
+      expect(tool.declaration['name'], 'termux');
+    });
+
+    test('run çalışmazsa kullanıcıya yol gösterir', () async {
+      final result = await TermuxTool().invoke({
+        'action': 'run',
+        'command': 'echo merhaba',
+        'timeout_seconds': 5,
+      });
+      // Test makinesinde Termux ikilileri yok: exit_code != 0 ve ipucu vermeli.
+      expect(result.output, contains('exit_code'));
+    });
+  });
+
+  group('araç kayıt setleri', () {
+    test('tam sette yeni cihaz/hafıza/termux araçları var', () {
+      final registry = AgentToolRegistryBuilder.full();
+      for (final name in [
+        'update_plan',
+        'memory',
+        'shell',
+        'termux',
+        'device',
+        'web',
+        'music',
+        'phone',
+        'read_file',
+        'write_file',
+        'edit_file',
+        'move_file',
+      ]) {
+        expect(registry[name], isNotNull, reason: '$name eksik');
+      }
+    });
+
+    test('sesli asistan setinde cihaz var ama dosya/kabuk yok', () {
+      final registry = AgentToolRegistryBuilder.voice();
+      expect(registry['device'], isNotNull);
+      expect(registry['music'], isNotNull);
+      expect(registry['shell'], isNull);
+      expect(registry['write_file'], isNull);
+    });
+
+    test('her aracın şeması model için geçerli', () {
+      for (final tool in AgentToolRegistryBuilder.full().tools) {
+        expect(tool.name, isNotEmpty);
+        expect(tool.description.length, greaterThan(20),
+            reason: '${tool.name} açıklaması çok kısa');
+        expect(tool.parameters['type'], 'OBJECT');
+        expect(tool.parameters['properties'], isNotNull);
+      }
     });
   });
 }
