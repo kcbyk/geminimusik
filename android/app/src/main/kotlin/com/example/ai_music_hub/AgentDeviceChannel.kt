@@ -389,9 +389,8 @@ class AgentDeviceChannel(private val context: Context) {
     }
 
     private fun statusOf(key: String): String {
-        val android = androidPermissionFor(key)
-        if (android == null) return specialStatus(key)
-        return if (isGranted(android)) "granted" else "denied"
+        val androidPermission: String = androidPermissionFor(key) ?: return specialStatus(key)
+        return if (isGranted(androidPermission)) "granted" else "denied"
     }
 
     private fun specialStatus(key: String): String = when (key) {
@@ -418,6 +417,9 @@ class AgentDeviceChannel(private val context: Context) {
                 "denied"
             }
 
+        "notifications" ->
+            if (Build.VERSION.SDK_INT < 33) "notRequired" else "denied"
+
         else -> "unknown"
     }
 
@@ -428,6 +430,29 @@ class AgentDeviceChannel(private val context: Context) {
         } catch (e: Exception) {
             false
         }
+    }
+
+    /** Ajanın izin adını Android çalışma zamanı iznine eşler. */
+    private fun androidPermissionFor(key: String): String? = when (key) {
+        "storage" -> if (Build.VERSION.SDK_INT >= 33) {
+            "android.permission.READ_MEDIA_IMAGES"
+        } else {
+            android.Manifest.permission.READ_EXTERNAL_STORAGE
+        }
+
+        "microphone" -> android.Manifest.permission.RECORD_AUDIO
+        "camera" -> android.Manifest.permission.CAMERA
+        "notifications" ->
+            if (Build.VERSION.SDK_INT >= 33) {
+                android.Manifest.permission.POST_NOTIFICATIONS
+            } else {
+                null
+            }
+
+        "location" -> android.Manifest.permission.ACCESS_FINE_LOCATION
+        "phone" -> android.Manifest.permission.CALL_PHONE
+        // allFiles / overlay / battery / appSettings Ayarlardan verilir.
+        else -> null
     }
 
     private fun isGranted(permission: String): Boolean {
