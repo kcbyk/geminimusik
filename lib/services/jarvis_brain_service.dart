@@ -1,10 +1,10 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import '../models/chat_message.dart';
+import 'agent/agent_controller.dart';
 import 'gemini_service.dart';
 import 'global_audio_service.dart';
 import 'jarvis_tts_service.dart';
-import 'phone_control_service.dart';
 import 'voice_command_parser.dart';
 
 enum JarvisStatus {
@@ -19,13 +19,18 @@ class JarvisBrainService {
   JarvisBrainService._internal();
 
   final GeminiService _geminiService = GeminiService();
-  final PhoneControlService _phoneControl = PhoneControlService.instance;
   final JarvisTtsService _tts = JarvisTtsService.instance;
 
-  final ValueNotifier<JarvisStatus> statusNotifier = ValueNotifier<JarvisStatus>(JarvisStatus.idle);
+  /// Cihaz/müzik/web işleri artık modelin seçtiği araçlarla yapılır.
+  final AgentController _agent = AgentController();
+
+  final ValueNotifier<JarvisStatus> statusNotifier =
+      ValueNotifier<JarvisStatus>(JarvisStatus.idle);
   final ValueNotifier<String> userSpeechNotifier = ValueNotifier<String>('');
-  final ValueNotifier<String> jarvisResponseNotifier = ValueNotifier<String>('');
-  final ValueNotifier<bool> isOverlayVisibleNotifier = ValueNotifier<bool>(false);
+  final ValueNotifier<String> jarvisResponseNotifier =
+      ValueNotifier<String>('');
+  final ValueNotifier<bool> isOverlayVisibleNotifier =
+      ValueNotifier<bool>(false);
 
   final List<ChatMessage> _jarvisHistory = [];
 
@@ -60,60 +65,23 @@ class JarvisBrainService {
     userSpeechNotifier.value = cleaned;
     statusNotifier.value = JarvisStatus.thinking;
 
-    final lower = cleaned.toLowerCase();
-
-    // 1. DONANIM KONTROLLERİ: FENER
-    if (lower.contains('fener') || lower.contains('flaş') || lower.contains('ışık')) {
-      final enable = lower.contains('aç') || lower.contains('yak')
-          ? true
-          : (lower.contains('kapat') || lower.contains('söndür') ? false : null);
-      final result = await _phoneControl.toggleFlashlight(enable: enable);
-      return await _respond(result);
-    }
-
-    // 2. DONANIM KONTROLLERİ: PİL / ŞARJ
-    if (lower.contains('pil') || lower.contains('şarj') || lower.contains('batarya')) {
-      final result = await _phoneControl.getBatteryInfo();
-      return await _respond(result);
-    }
-
-    // 3. DONANIM KONTROLLERİ: SES AYARI
-    if (lower.contains('ses') &&
-        (lower.contains('aç') ||
-            lower.contains('yükselt') ||
-            lower.contains('kıs') ||
-            lower.contains('azalt') ||
-            lower.contains('sessiz') ||
-            lower.contains('ful') ||
-            lower.contains('son ses'))) {
-      final result = await _phoneControl.adjustVolume(lower);
-      return await _respond(result);
-    }
-
-    // 4. UYGULAMA BAŞLATMA
-    if (lower.contains('aç') &&
-        (lower.contains('whatsapp') ||
-            lower.contains('youtube') ||
-            lower.contains('spotify') ||
-            lower.contains('harita') ||
-            lower.contains('maps') ||
-            lower.contains('tarayıcı') ||
-            lower.contains('chrome') ||
-            lower.contains('kamera') ||
-            lower.contains('mail') ||
-            lower.contains('gmail'))) {
-      final result = await _phoneControl.openApplication(lower);
-      return await _respond(result);
-    }
-
-    // 5. MÜZİK KONTROLLERİ (Sadece açıkça "çal/aç/oynat/duraklat/kapat" denildiğinde)
+    // 1. ANINDA MÜZİK YOLU: wake-word ile gelen "çal/aç/duraklat" komutları
+    //    model turu beklemeden çalışsın diye yerel ayrıştırıcıda kalıyor.
     final musicCmd = VoiceCommandParser.parse(cleaned);
     if (musicCmd.type != VoiceActionType.unknown) {
       final result = await _handleMusicCommand(musicCmd);
       return await _respond(result);
     }
 
-    // 6. YARATICI VE GENEL CEVAPLAR: GEMINI 2.5 FLASH BEYNİ (Sohbet & Genel Konuşma)
+    // 2. AJAN YOLU: fener, pil, ses, uygulama açma, arama, web araması ve
+    //    çok adımlı işler. Kararı artık kelime eşleşmesi değil, model veriyor:
+    //    Gemini elindeki araçlardan (phone / music / web) uygun olanı seçiyor.
+    final agentReply = await _runAgent(cleaned);
+    if (agentReply != null) {
+      return await _respond(agentReply);
+    }
+
+    // 3. SOHBET YOLU: ajan bir şey yapamadıysa veya genel soruysa Gemini ile konuş.
     try {
       const jarvisSystemPrompt = '''
 Sen kullanıcının son derece sadık, karizmatik, zeki ve genel konularda sohbet edebilen Iron Man tarzı kişisel asistanı J.A.R.V.I.S.'sin.
@@ -147,7 +115,9 @@ YÖNERGELER:
           .replaceAll(RegExp(r'\*\*|\*|#+|`+'), '')
           .trim();
 
-      final reply = cleanText.isNotEmpty ? cleanText : 'Emredersiniz efendim, sizi dinliyorum.';
+      final reply = cleanText.isNotEmpty
+          ? cleanText
+          : 'Emredersiniz efendim, sizi dinliyorum.';
 
       _jarvisHistory.add(
         ChatMessage(
@@ -165,7 +135,27 @@ YÖNERGELER:
       return await _respond(reply);
     } catch (e) {
       debugPrint('[JarvisBrain] Gemini hatası: $e');
-      return await _respond('Sizi duyabiliyorum efendim ancak bağlantımda ufak bir aksaklık oldu. Bir saniye sonra tekrar dener misiniz?');
+      return await _respond(
+          'Sizi duyabiliyorum efendim ancak bağlantımda ufak bir aksaklık oldu. Bir saniye sonra tekrar dener misiniz?');
+    }
+  }
+
+  /// Komutu ajan döngüsüne verir. Hata/boş yanıt olursa null döner ve
+  /// eski sohbet yolu devreye girer (asistan asla cevapsız kalmasın).
+  Future<String?> _runAgent(String command) async {
+    try {
+      final reply = await _agent.runQuick(command).timeout(
+            const Duration(seconds: 25),
+            onTimeout: () => '',
+          );
+      final cleanedReply = reply
+          .replaceAll(RegExp(r'\[.*?\]'), '')
+          .replaceAll(RegExp(r'\*\*|\*|#+|`+'), '')
+          .trim();
+      return cleanedReply.isEmpty ? null : cleanedReply;
+    } catch (e) {
+      debugPrint('[JarvisBrain] Ajan yolu başarısız, sohbete düşülüyor: $e');
+      return null;
     }
   }
 

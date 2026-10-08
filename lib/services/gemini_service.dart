@@ -4,12 +4,27 @@ import 'dart:typed_data';
 import 'package:dio/dio.dart';
 
 import '../models/chat_message.dart';
+import 'agent/turn_model.dart';
 
 class GeminiResponse {
   final String text;
   final String usedKeyLabel;
 
-  const GeminiResponse({required this.text, required this.usedKeyLabel});
+  /// Model bu turda araç kullanmak istiyorsa doludur (native function calling).
+  final List<ModelFunctionCall> functionCalls;
+
+  final int promptTokens;
+  final int completionTokens;
+
+  const GeminiResponse({
+    required this.text,
+    required this.usedKeyLabel,
+    this.functionCalls = const [],
+    this.promptTokens = 0,
+    this.completionTokens = 0,
+  });
+
+  bool get hasFunctionCalls => functionCalls.isNotEmpty;
 }
 
 class GeminiConfigurationException implements Exception {
@@ -63,6 +78,7 @@ PROJE FİKRİ:
     return raw.map((key) => key.trim()).where((key) => key.isNotEmpty).toList();
   }
 
+  /// Sohbet yolu: [ChatMessage] listesi + tek kullanıcı mesajı.
   Future<GeminiResponse> sendMessage({
     required String prompt,
     required List<ChatMessage> history,
@@ -70,6 +86,28 @@ PROJE FİKRİ:
     Uint8List? imageBytes,
     String? mimeType,
     String? customSystemPrompt,
+    List<Map<String, dynamic>>? tools,
+    int maxOutputTokens = 4096,
+  }) {
+    return sendTurn(
+      contents: _buildContents(history, prompt, imageBytes, mimeType),
+      model: model,
+      systemPrompt: customSystemPrompt ?? _systemPrompt,
+      tools: tools,
+      maxOutputTokens: maxOutputTokens,
+    );
+  }
+
+  /// Ajan yolu: hazır [TurnContent] listesi gönderir. Araç çağrısı dönen turlarda
+  /// modelin `functionCall` part'ları korunur, sonuçlar `functionResponse` olarak
+  /// geri eklenir. Sohbet ekranı bunu kullanmaz, davranışı değişmez.
+  Future<GeminiResponse> sendTurn({
+    required List<TurnContent> contents,
+    String model = 'gemini-2.5-flash',
+    required String systemPrompt,
+    List<Map<String, dynamic>>? tools,
+    double temperature = 0.55,
+    int maxOutputTokens = 8192,
   }) async {
     final keys = _apiKeys;
     if (keys.isEmpty) {
@@ -80,16 +118,24 @@ PROJE FİKRİ:
     final requestBody = <String, dynamic>{
       'system_instruction': {
         'parts': [
-          {'text': customSystemPrompt ?? _systemPrompt}
+          {'text': systemPrompt}
         ]
       },
-      'contents': _buildContents(history, prompt, imageBytes, mimeType),
+      'contents': contents.map((c) => c.toJson()).toList(),
       'generationConfig': {
-        'temperature': 0.55,
-        // 2048 token uzun kod ve açıklamaların yarıda kesilmesine yol açıyordu.
-        'maxOutputTokens': 4096,
+        'temperature': temperature,
+        'maxOutputTokens': maxOutputTokens,
       },
     };
+    final declarations =
+        tools == null ? const [] : buildToolDeclarations(tools);
+    if (declarations.isNotEmpty) {
+      requestBody['tools'] = declarations;
+      // Model hem anlatıp hem araç çağırabilsin; zorla tek moda kilitlemiyoruz.
+      requestBody['tool_config'] = {
+        'function_calling_config': {'mode': 'AUTO'}
+      };
+    }
 
     String? lastFailure;
     for (var index = 0; index < keys.length; index++) {
@@ -100,10 +146,16 @@ PROJE FİKRİ:
           data: jsonEncode(requestBody),
         );
         if (response.statusCode == 200 && response.data is Map) {
-          final text = _extractText(response.data as Map<dynamic, dynamic>);
-          if (text.isNotEmpty) {
+          final data = response.data as Map<dynamic, dynamic>;
+          final parsed = _extractTurn(data);
+          if (parsed.text.isNotEmpty || parsed.calls.isNotEmpty) {
             return GeminiResponse(
-                text: text, usedKeyLabel: '$model (anahtar ${index + 1})');
+              text: parsed.text,
+              usedKeyLabel: '$model (anahtar ${index + 1})',
+              functionCalls: parsed.calls,
+              promptTokens: parsed.promptTokens,
+              completionTokens: parsed.completionTokens,
+            );
           }
           lastFailure = 'Model boş yanıt döndürdü.';
         } else {
@@ -122,7 +174,8 @@ PROJE FİKRİ:
         lastFailure ?? 'Gemini yanıt veremedi. Lütfen tekrar deneyin.');
   }
 
-  List<Map<String, dynamic>> _buildContents(
+  /// Sohbet geçmişini Gemini `contents` dizisine çevirir.
+  List<TurnContent> _buildContents(
     List<ChatMessage> history,
     String prompt,
     Uint8List? imageBytes,
@@ -144,20 +197,17 @@ PROJE FİKRİ:
       selected.add(message);
       usedCharacters += length;
     }
-    final contents = <Map<String, dynamic>>[];
+    final contents = <TurnContent>[];
     for (final message in selected.reversed) {
       if (message.content.trim().isEmpty) {
         continue;
       }
       // Eski görselleri tekrar göndermek gecikmeyi ve istek boyutunu artırıyordu.
-      contents.add({
-        'role': message.isUser ? 'user' : 'model',
-        'parts': [
-          {'text': message.content}
-        ],
-      });
+      final parts = <dynamic>[message.content];
+      contents.add(
+          message.isUser ? TurnContent.user(parts) : TurnContent.model(parts));
     }
-    final userParts = <Map<String, dynamic>>[];
+    final userParts = <dynamic>[];
     if (imageBytes != null) {
       userParts.add({
         'inline_data': {
@@ -166,29 +216,62 @@ PROJE FİKRİ:
         }
       });
     }
-    userParts.add({
-      'text':
-          prompt.isEmpty ? 'Bu görseli detaylı açıkla ve analiz et.' : prompt
-    });
-    contents.add({'role': 'user', 'parts': userParts});
+    userParts.add(
+        prompt.isEmpty ? 'Bu görseli detaylı açıkla ve analiz et.' : prompt);
+    contents.add(TurnContent.user(userParts));
     return contents;
   }
 
-  String _extractText(Map<dynamic, dynamic> data) {
+  /// Adayın ilk content bloğundaki metin + functionCall part'larını çözer.
+  ModelTurn _extractTurn(Map<dynamic, dynamic> data) {
     final candidates = data['candidates'];
     if (candidates is! List || candidates.isEmpty || candidates.first is! Map) {
-      return '';
+      return const ModelTurn();
     }
-    final content = (candidates.first as Map)['content'];
-    if (content is! Map || content['parts'] is! List) {
-      return '';
+    final candidate = candidates.first as Map;
+    final content = candidate['content'];
+    final parts = content is Map && content['parts'] is List
+        ? content['parts'] as List
+        : const [];
+
+    final textBuffer = StringBuffer();
+    final calls = <ModelFunctionCall>[];
+    var autoId = 0;
+    for (final part in parts) {
+      if (part is! Map) continue;
+      final text = part['text'];
+      if (text is String) {
+        textBuffer.write(text);
+        continue;
+      }
+      final call = part['functionCall'];
+      if (call is Map) {
+        final args = call['args'];
+        calls.add(ModelFunctionCall(
+          id: call['id']?.toString() ??
+              'call_${DateTime.now().microsecondsSinceEpoch}_${autoId++}',
+          name: call['name']?.toString() ?? '',
+          args: args is Map
+              ? Map<String, dynamic>.from(args)
+              : <String, dynamic>{},
+        ));
+      }
     }
-    return (content['parts'] as List)
-        .whereType<Map>()
-        .map((part) => part['text'])
-        .whereType<String>()
-        .join()
-        .trim();
+
+    final usage = data['usageMetadata'];
+    var promptTokens = 0;
+    var completionTokens = 0;
+    if (usage is Map) {
+      promptTokens = (usage['promptTokenCount'] as num?)?.toInt() ?? 0;
+      completionTokens = (usage['candidatesTokenCount'] as num?)?.toInt() ?? 0;
+    }
+
+    return ModelTurn(
+      text: textBuffer.toString().trim(),
+      calls: calls.where((c) => c.name.isNotEmpty).toList(),
+      promptTokens: promptTokens,
+      completionTokens: completionTokens,
+    );
   }
 
   String _apiFailure(int? statusCode, dynamic data) {

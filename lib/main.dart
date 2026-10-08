@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'screens/chat_screen.dart';
@@ -6,15 +8,17 @@ import 'screens/agent_screen.dart';
 import 'screens/jarvis_overlay_page.dart';
 import 'theme/gemini_colors.dart';
 import 'widgets/gemini_sparkle.dart';
+import 'services/agent/agent_controller.dart';
 import 'services/chat_history_service.dart';
 import 'services/jarvis_brain_service.dart';
 import 'services/voice_assistant_service.dart';
 import 'widgets/jarvis_siri_overlay.dart';
 
-
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   runApp(const GeminiApp());
+  // Ajan çalışma alanını (dosya/kabuk kökü) ilk görevden önce hazırla.
+  unawaited(AgentController().initialize());
 }
 
 class GeminiApp extends StatelessWidget {
@@ -80,7 +84,6 @@ class _GeminiMainLayoutState extends State<GeminiMainLayout> {
 
   @override
   Widget build(BuildContext context) {
-
     final isDesktopOrWebWide = MediaQuery.of(context).size.width > 768;
 
     return Scaffold(
@@ -126,12 +129,14 @@ class _GeminiMainLayoutState extends State<GeminiMainLayout> {
                       activeSessionId: _activeSessionId,
                       onSessionChanged: (sessionId, messages) {
                         setState(() {
-                          _activeSessionId = sessionId.isEmpty ? null : sessionId;
+                          _activeSessionId =
+                              sessionId.isEmpty ? null : sessionId;
                         });
                       },
                     ),
                     MusicScreen(
-                      key: ValueKey('${_forwardedSongQuery ?? 'gemini_music_tab'}_${_forwardedAction.name}'),
+                      key: ValueKey(
+                          '${_forwardedSongQuery ?? 'gemini_music_tab'}_${_forwardedAction.name}'),
                       initialQuery: _forwardedSongQuery,
                       autoAction: _forwardedAction,
                       onOpenSidebar: () {
@@ -159,7 +164,8 @@ class _GeminiMainLayoutState extends State<GeminiMainLayout> {
 
           // 2. JARVIS SIRI OVERLAY (Hey Jarvis veya butona basıldığında açılır)
           ValueListenableBuilder<bool>(
-            valueListenable: JarvisBrainService.instance.isOverlayVisibleNotifier,
+            valueListenable:
+                JarvisBrainService.instance.isOverlayVisibleNotifier,
             builder: (context, isVisible, _) {
               if (!isVisible) return const SizedBox.shrink();
               return Positioned.fill(
@@ -201,7 +207,8 @@ class _GeminiMainLayoutState extends State<GeminiMainLayout> {
                   ),
                   const Spacer(),
                   IconButton(
-                    icon: const Icon(Icons.menu_open, color: GeminiColors.textMuted, size: 20),
+                    icon: const Icon(Icons.menu_open,
+                        color: GeminiColors.textMuted, size: 20),
                     tooltip: 'Menüyü Kapat',
                     onPressed: () {
                       if (isDrawer) {
@@ -227,9 +234,9 @@ class _GeminiMainLayoutState extends State<GeminiMainLayout> {
                     _currentTabIndex = 0;
                   });
                 },
-
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                   decoration: BoxDecoration(
                     color: const Color(0xFF282A2C),
                     borderRadius: BorderRadius.circular(24),
@@ -237,7 +244,8 @@ class _GeminiMainLayoutState extends State<GeminiMainLayout> {
                   ),
                   child: Row(
                     children: const [
-                      Icon(Icons.add, color: GeminiColors.textSecondary, size: 20),
+                      Icon(Icons.add,
+                          color: GeminiColors.textSecondary, size: 20),
                       SizedBox(width: 10),
                       Text(
                         'Yeni sohbet',
@@ -260,7 +268,8 @@ class _GeminiMainLayoutState extends State<GeminiMainLayout> {
                 borderRadius: BorderRadius.circular(10),
                 onTap: () => setState(() => _isNavExpanded = !_isNavExpanded),
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                   child: Row(
                     children: [
                       Icon(
@@ -320,7 +329,11 @@ class _GeminiMainLayoutState extends State<GeminiMainLayout> {
               ),
             ],
 
-            const Divider(color: GeminiColors.divider, height: 20, indent: 16, endIndent: 16),
+            const Divider(
+                color: GeminiColors.divider,
+                height: 20,
+                indent: 16,
+                endIndent: 16),
 
             // Sohbet Geçmişi Başlığı
             Padding(
@@ -356,7 +369,8 @@ class _GeminiMainLayoutState extends State<GeminiMainLayout> {
                     );
                   }
                   return ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     itemCount: sessions.length,
                     itemBuilder: (context, index) {
                       final session = sessions[index];
@@ -377,9 +391,13 @@ class _GeminiMainLayoutState extends State<GeminiMainLayout> {
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 1),
       decoration: BoxDecoration(
-        color: isActive ? const Color(0xFF004A77).withOpacity(0.2) : Colors.transparent,
+        color: isActive
+            ? const Color(0xFF004A77).withOpacity(0.2)
+            : Colors.transparent,
         borderRadius: BorderRadius.circular(8),
-        border: isActive ? Border.all(color: GeminiColors.geminiBlue.withOpacity(0.3)) : null,
+        border: isActive
+            ? Border.all(color: GeminiColors.geminiBlue.withOpacity(0.3))
+            : null,
       ),
       child: ListTile(
         dense: true,
@@ -412,7 +430,8 @@ class _GeminiMainLayoutState extends State<GeminiMainLayout> {
           });
         },
         trailing: IconButton(
-          icon: const Icon(Icons.close, size: 14, color: GeminiColors.textMuted),
+          icon:
+              const Icon(Icons.close, size: 14, color: GeminiColors.textMuted),
           tooltip: 'Sil',
           onPressed: () async {
             await ChatHistoryService.instance.deleteSession(session.id);
@@ -426,7 +445,6 @@ class _GeminiMainLayoutState extends State<GeminiMainLayout> {
       ),
     );
   }
-
 
   String _formatDate(DateTime dt) {
     final now = DateTime.now();
@@ -454,15 +472,21 @@ class _GeminiMainLayoutState extends State<GeminiMainLayout> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
-            color: isSelected ? const Color(0xFF004A77).withOpacity(0.3) : Colors.transparent,
+            color: isSelected
+                ? const Color(0xFF004A77).withOpacity(0.3)
+                : Colors.transparent,
             borderRadius: BorderRadius.circular(12),
-            border: isSelected ? Border.all(color: GeminiColors.geminiBlue.withOpacity(0.5)) : null,
+            border: isSelected
+                ? Border.all(color: GeminiColors.geminiBlue.withOpacity(0.5))
+                : null,
           ),
           child: Row(
             children: [
               Icon(
                 isSelected ? activeIcon : icon,
-                color: isSelected ? GeminiColors.geminiCyan : GeminiColors.textMuted,
+                color: isSelected
+                    ? GeminiColors.geminiCyan
+                    : GeminiColors.textMuted,
                 size: 20,
               ),
               const SizedBox(width: 12),
@@ -473,9 +497,12 @@ class _GeminiMainLayoutState extends State<GeminiMainLayout> {
                     Text(
                       label,
                       style: TextStyle(
-                        color: isSelected ? Colors.white : GeminiColors.textSecondary,
+                        color: isSelected
+                            ? Colors.white
+                            : GeminiColors.textSecondary,
                         fontSize: 13,
-                        fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                        fontWeight:
+                            isSelected ? FontWeight.bold : FontWeight.w500,
                       ),
                     ),
                     Text(
