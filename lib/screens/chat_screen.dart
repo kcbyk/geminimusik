@@ -7,7 +7,6 @@ import '../models/chat_message.dart';
 import '../services/gemini_service.dart';
 import '../services/global_audio_service.dart';
 import '../services/web_search_service.dart';
-import '../services/image_search_service.dart';
 import '../services/speech/speech_service.dart';
 import '../services/chat_history_service.dart';
 import '../theme/gemini_colors.dart';
@@ -51,7 +50,6 @@ class _ChatScreenState extends State<ChatScreen> {
       _scrollControllerField ??= ScrollController();
 
   final GeminiService _geminiService = GeminiService();
-  final ImageSearchService _imageSearchService = ImageSearchService();
 
   final List<ChatMessage> _messages = [];
   bool _isLoading = false;
@@ -530,7 +528,8 @@ class _ChatScreenState extends State<ChatScreen> {
       final imageQuery = _imageSearchQuery(promptText);
       if (imageQuery != null && imageQuery.isNotEmpty) {
         try {
-          final images = await _imageSearchService.search(imageQuery);
+          final images =
+              await WebSearchService.instance.searchImagePreviews(imageQuery);
           if (images.isNotEmpty) {
             final gallery =
                 images.map((image) => image.toGalleryJson()).toList();

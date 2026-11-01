@@ -15,6 +15,27 @@ class WebSearchResult {
   });
 }
 
+class WebImagePreview {
+  final String thumbnailUrl;
+  final String imageUrl;
+  final String title;
+  final String sourceUrl;
+  final String sourceName;
+  const WebImagePreview(
+      {required this.thumbnailUrl,
+      required this.imageUrl,
+      required this.title,
+      required this.sourceUrl,
+      required this.sourceName});
+  Map<String, dynamic> toGalleryJson() => {
+        'thumbnail_url': thumbnailUrl,
+        'image_url': imageUrl,
+        'title': title,
+        'source_url': sourceUrl,
+        'source_name': sourceName
+      };
+}
+
 class WebSearchService {
   static final WebSearchService instance = WebSearchService._();
   WebSearchService._();
@@ -31,6 +52,7 @@ class WebSearchService {
   );
 
   bool _isWarmingUp = false;
+  final Map<String, List<WebImagePreview>> _imagePreviewCache = {};
 
   /// Render backend'i uyandırmak için arka planda hafif bir ping atar
   void warmup() async {
@@ -94,6 +116,55 @@ class WebSearchService {
     return [];
   }
 
+  /// Mevcut arama sağlayıcısından dönen sayfa metnindeki gerçek Open Graph /
+  /// Twitter Card görsellerini kullanır. Sağlayıcı HTML ya da görsel URL
+  /// vermiyorsa boş döner; asla tahmini bir resim URL'si üretmez.
+  Future<List<WebImagePreview>> searchImagePreviews(String query,
+      {int limit = 10}) async {
+    final cacheKey = query.trim().toLowerCase();
+    if (_imagePreviewCache.containsKey(cacheKey)) {
+      return _imagePreviewCache[cacheKey]!;
+    }
+    final results =
+        await search(query, limit: limit.clamp(1, 12), includeDetail: true);
+    final previews = <WebImagePreview>[];
+    for (final result in results) {
+      final imageUrl = _extractPageImage(result.pageText);
+      if (imageUrl == null) continue;
+      final uri = Uri.tryParse(result.url);
+      if (uri == null || uri.scheme != 'https') continue;
+      previews.add(WebImagePreview(
+        thumbnailUrl: imageUrl,
+        imageUrl: imageUrl,
+        title: result.title,
+        sourceUrl: result.url,
+        sourceName: uri.host.replaceFirst(RegExp(r'^www\\.'), ''),
+      ));
+    }
+    _imagePreviewCache[cacheKey] = previews;
+    return previews;
+  }
+
+  String? _extractPageImage(String? content) {
+    if (content == null || content.isEmpty) return null;
+    final patterns = [
+      RegExp(
+          r'''<meta[^>]+(?:property|name)=["'](?:og:image|twitter:image)["'][^>]+content=["'](https://[^"']+)["']''',
+          caseSensitive: false),
+      RegExp(
+          r'''<meta[^>]+content=["'](https://[^"']+)["'][^>]+(?:property|name)=["'](?:og:image|twitter:image)["']''',
+          caseSensitive: false),
+      RegExp(r'''https://[^\s"']+\.(?:jpg|jpeg|png|webp)(?:\?[^\s"']*)?''',
+          caseSensitive: false),
+    ];
+    for (final pattern in patterns) {
+      final match = pattern.firstMatch(content);
+      final url = match?.group(1) ?? match?.group(0);
+      if (url != null && Uri.tryParse(url)?.scheme == 'https') return url;
+    }
+    return null;
+  }
+
   /// Verilen URL içeriğini temiz metin olarak okur
   Future<String?> readPage(String url, {int karakter = 3000}) async {
     try {
@@ -139,7 +210,8 @@ class WebSearchService {
       }
     }
     sb.writeln('\n=== İNTERNET BİLGİLERİNİN SONU ===');
-    sb.writeln('Talimat: Yukarıdaki güncel web verilerini kullanarak kullanıcının sorusuna doğrudan, en güncel ve net yanıtı ver. Özellikle döviz ve altın gibi finansal verilerde sayfadaki "Önceki Kapanış", "Alış", "Satış" ve "Anlık Piyasa" değerlerini birbirine karıştırma; gerekiyorsa bunları açıkça adlandırarak (Örn: Anlık: 56,41 TL, Önceki Kapanış: 56,36 TL) tutarlı şekilde açıkla. Asla tekrar [ACTION:SEARCH] üretme!');
+    sb.writeln(
+        'Talimat: Yukarıdaki güncel web verilerini kullanarak kullanıcının sorusuna doğrudan, en güncel ve net yanıtı ver. Özellikle döviz ve altın gibi finansal verilerde sayfadaki "Önceki Kapanış", "Alış", "Satış" ve "Anlık Piyasa" değerlerini birbirine karıştırma; gerekiyorsa bunları açıkça adlandırarak (Örn: Anlık: 56,41 TL, Önceki Kapanış: 56,36 TL) tutarlı şekilde açıkla. Asla tekrar [ACTION:SEARCH] üretme!');
     sb.writeln('[/WEB_ARAMA_SONUCLARI]');
     return sb.toString();
   }
