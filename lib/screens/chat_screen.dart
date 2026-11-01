@@ -13,6 +13,7 @@ import '../theme/gemini_colors.dart';
 import '../widgets/gemini_sparkle.dart';
 import '../services/jarvis_brain_service.dart';
 import '../services/jarvis_tts_service.dart';
+import '../widgets/generative_ui/generative_message_view.dart';
 
 class ChatScreen extends StatefulWidget {
   final Function(String songQuery)? onNavigateToMusicDownload;
@@ -1787,6 +1788,74 @@ class _ChatScreenState extends State<ChatScreen> {
                   letterSpacing: -0.5,
                 ),
               ),
+              const SizedBox(height: 32),
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                alignment: WrapAlignment.center,
+                children: [
+                  _buildPromptChip(
+                    icon: Icons.account_balance_rounded,
+                    label: 'Modern Banka Uygulaması Tasarla',
+                    prompt: 'Modern bir banka uygulaması tasarla.',
+                  ),
+                  _buildPromptChip(
+                    icon: Icons.dashboard_rounded,
+                    label: 'Fintech Dashboard ve Grafik',
+                    prompt: 'Haftalık finans ve harcama analizi içeren bir dashboard hazırla.',
+                  ),
+                  _buildPromptChip(
+                    icon: Icons.compare_arrows_rounded,
+                    label: 'Tasarım Alternatifi Karşılaştır',
+                    prompt: 'Modern banka uygulaması için iki farklı tasarım alternatifini karşılaştır.',
+                  ),
+                  _buildPromptChip(
+                    icon: Icons.dynamic_form_rounded,
+                    label: 'Geri Bildirim Formu',
+                    prompt: 'Banka uygulaması için etkileşimli bir geri bildirim formu hazırla.',
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPromptChip({
+    required IconData icon,
+    required String label,
+    required String prompt,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: () => _handleSendMessage(prompt),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1E1F20),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: Colors.white.withValues(alpha: 0.08),
+              width: 1,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 16, color: GeminiColors.geminiCyan),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: const TextStyle(
+                  color: Color(0xFFE3E3E3),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
             ],
           ),
         ),
@@ -2045,45 +2114,10 @@ class _ChatScreenState extends State<ChatScreen> {
                       buildFavicon: _buildFavicon,
                       extractDomain: _extractDomain,
                     ),
-                  MarkdownBody(
-                    data: msg.content,
-                    selectable: true,
-                    styleSheet: MarkdownStyleSheet(
-                      p: const TextStyle(
-                        color: Color(0xFFE8EAED),
-                        fontSize: 16,
-                        height: 1.6,
-                      ),
-                      h1: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                        height: 1.5,
-                      ),
-                      h2: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        height: 1.4,
-                      ),
-                      h3: const TextStyle(
-                        color: GeminiColors.textSecondary,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                      code: const TextStyle(
-                        backgroundColor: Color(0xFF1E1F20),
-                        color: GeminiColors.geminiCyan,
-                        fontSize: 13,
-                        fontFamily: 'monospace',
-                      ),
-                      codeblockDecoration: BoxDecoration(
-                        color: const Color(0xFF141414),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      listBullet:
-                          const TextStyle(color: GeminiColors.geminiBlue),
-                    ),
+                  GenerativeMessageView(
+                    content: msg.content,
+                    onActionPrompt: (prompt) => _handleSendMessage(prompt),
+                    onFormSubmit: (data, promptText) => _handleSendMessage(promptText),
                   ),
                   if (msg.isMusicCommand &&
                       widget.onNavigateToMusicDownload != null) ...[

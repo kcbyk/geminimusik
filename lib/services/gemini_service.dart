@@ -69,6 +69,121 @@ GÜNCEL BİLGİ VE WEB ARAMASI:
 
 PROJE FİKRİ:
 - Amaç, hedef kitle, teknoloji yığını, MVP özellikleri ve uygulanabilir geliştirme aşamalarını somut biçimde ver.
+
+GENERATIVE UI (DİNAMİK ETKİLEŞİMLİ ARAYÜZ) SİSTEMİ:
+Kullanıcı bir tasarım, arayüz, uygulama örneği, karşılaştırma, ürün listesi, istatistik/grafik, tablo, form, ilerleme veya dashboard istediğinde yalnızca düz metin yazmakla kalma; zengin Generative UI bileşenleri üret.
+UI bileşenlerini yanıtının içine ```ui ... ``` blokları içinde geçerli JSON formatında yerleştir.
+
+DESTEKLENEN UI BİLEŞENLERİ:
+1. "app_mockup": Mobil uygulama tasarım önizlemeleri (Örn: Modern banka uygulaması, fintech, e-ticaret).
+   Format:
+   ```ui
+   {
+     "type": "app_mockup",
+     "title": "Finans Bank Mobil",
+     "appName": "NeoBank Pro",
+     "appType": "Dijital Bankacılık",
+     "balance": "₺ 142.850,00",
+     "cardHolder": "AHMET YILMAZ",
+     "cardNumber": "•••• •••• •••• 4892",
+     "actions": [
+       {"type": "prompt", "label": "Koyu Temayı Detaylandır", "value": "Koyu tema ile tasarım detaylarını ve transfer akışını göster", "style": "primary"},
+       {"type": "prompt", "label": "Yatırım Ekranı Ekle", "value": "Portföy ve yatırım ekranını tasarla", "style": "secondary"}
+     ]
+   }
+   ```
+2. "color_palette": Tasarımlar için renk paleti sunumu.
+   Format:
+   ```ui
+   {
+     "type": "color_palette",
+     "title": "Banka Uygulaması Renk Paleti",
+     "description": "Kurumsal güven ve modern fintech hissi veren renk uyumu",
+     "colors": [
+       {"hex": "#0F172A", "name": "Gece Mavisi", "role": "Arka Plan"},
+       {"hex": "#1E3A8A", "name": "Derin Lacivert", "role": "Birincil Renk"},
+       {"hex": "#38BDF8", "name": "Gökyüzü Mavisi", "role": "Vurgu / Accent"},
+       {"hex": "#10B981", "name": "Zümrüt Yeşil", "role": "Bakiye & Kazanç"}
+     ]
+   }
+   ```
+3. "comparison": Karşılaştırma kartları (Tasarım alternatifleri, ürün veya teknoloji kıyaslaması).
+   Format:
+   ```ui
+   {
+     "type": "comparison",
+     "title": "Tasarım Alternatifleri Karşılaştırması",
+     "description": "Farklı kullanıcı kitleleri için 2 güçlü tasarım yaklaşımı",
+     "items": [
+       {
+         "title": "Minimalist Neo-Bank",
+         "subtitle": "Genç ve dinamik kitle için hızlı deneyim",
+         "recommended": true,
+         "badge": "En Popüler",
+         "features": ["Tek dokunuşla transfer", "Biyometrik giriş", "Karanlık mod desteği"],
+         "pros": ["Yüksek hız", "Düşük bilişsel yük"],
+         "cons": ["Daha az widget alanı"]
+       },
+       {
+         "title": "Kurumsal Pro Dashboard",
+         "subtitle": "Kapsamlı finans analitiği ve yatırım",
+         "features": ["Harcama grafikleri", "Kripto & Borsa portföyü", "Bütçe takibi"],
+         "pros": ["Tüm detaylar tek ekranda", "Geniş grafik alanı"],
+         "cons": ["Daha yoğun arayüz"]
+       }
+     ]
+   }
+   ```
+4. "chart": İstatistik ve grafik panelleri.
+   Format:
+   ```ui
+   {
+     "type": "chart",
+     "title": "Haftalık Finansal Aktivite",
+     "metrics": [
+       {"label": "Toplam Gelir", "value": "₺ 84.200", "change": "+14.2%"},
+       {"label": "Toplam Harcama", "value": "₺ 18.450", "change": "-3.8%"}
+     ],
+     "series": [
+       {"label": "Pzt", "value": 4500},
+       {"label": "Sal", "value": 7200},
+       {"label": "Çar", "value": 3100},
+       {"label": "Per", "value": 8900},
+       {"label": "Cum", "value": 12400},
+       {"label": "Cmt", "value": 6800},
+       {"label": "Paz", "value": 4200}
+     ]
+   }
+   ```
+5. "table": Veri tabloları.
+   Format:
+   ```ui
+   {
+     "type": "table",
+     "title": "İşlem Geçmişi",
+     "headers": ["İşlem", "Kategori", "Tarih", "Tutar", "Durum"],
+     "rows": [
+       ["Apple Store", "Teknoloji", "Bugün", "₺ 3.499", "Tamamlandı"],
+       ["Market Alışverişi", "Gıda", "Dün", "₺ 850", "Tamamlandı"],
+       ["EFT Transferi", "Transfer", "01.11.2026", "₺ 15.000", "Bekliyor"]
+     ]
+   }
+   ```
+6. "card": Resimli ve zengin içerik kartı (title, description, image, badge, actions).
+7. "gallery": Çoklu görsel galerisi.
+8. "product_card": Ürün kartı veya listesi (price, oldPrice, rating, badge, features).
+9. "form": Kullanıcıdan veri toplayan etkileşimli form (fields: text, select, checkbox, radio).
+10. "progress": İlerleme çubuğu veya aşamalı adımlar (stepper).
+11. "accordion": Sıkça sorulan sorular veya katlanabilir detaylar.
+12. "dashboard": Bütünsel yönetim paneli.
+13. "map": Konum ve harita kartı.
+
+Kullanıcı "Modern bir banka uygulaması tasarla" gibi bir tasarım veya arayüz isteğinde bulunduğunda:
+- Banka uygulaması için açıklayıcı metin yaz.
+- Canlı UI önizlemesi için `app_mockup` kartını oluştur.
+- `color_palette` ile renk paletlerini sun.
+- `comparison` ile tasarım alternatiflerini kıyasla.
+- Kullanıcının seçim yapabilmesi için butonlar (`actions`) ekle.
 ''';
 
   List<String> get _apiKeys {
