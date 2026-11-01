@@ -7,6 +7,10 @@ import 'package:ai_music_hub/widgets/generative_ui/generative_ui_renderer.dart';
 import 'package:ai_music_hub/widgets/generative_ui/components/ui_app_mockup_widget.dart';
 import 'package:ai_music_hub/widgets/generative_ui/components/ui_color_palette_widget.dart';
 import 'package:ai_music_hub/widgets/generative_ui/components/ui_form_widget.dart';
+import 'package:ai_music_hub/widgets/generative_ui/components/ui_card_grid_widget.dart';
+import 'package:ai_music_hub/widgets/generative_ui/components/ui_radio_group_widget.dart';
+import 'package:ai_music_hub/widgets/generative_ui/components/ui_checklist_widget.dart';
+import 'package:ai_music_hub/widgets/generative_ui/components/ui_info_card_widget.dart';
 
 void main() {
   group('GenerativeUiParser Tests', () {
@@ -406,6 +410,226 @@ Devam etmek ister misiniz?
       expect(find.text('Kredi kartı aidatı var mı?'), findsOneWidget);
       expect(find.text('Genel Merkez Şubesi'), findsWidgets);
       expect(find.text('Haritada Aç'), findsOneWidget);
+    });
+  });
+
+  // =========================================================================
+  // Round 2: Yeni özellik testleri
+  // =========================================================================
+
+  group('Round 2: answer_markdown + ui JSON format Tests', () {
+    test('answer_markdown + ui format doğru parse edilir', () {
+      const json = '''
+{
+  "answer_markdown": "## Önerim\\nAşağıdaki seçeneklere bakabilirsiniz.",
+  "ui": [
+    {
+      "type": "radio_group",
+      "question": "Hangi seçeneği tercih edersiniz?",
+      "options": ["Seçenek A", "Seçenek B"],
+      "submit_label": "Devam et"
+    }
+  ]
+}
+''';
+      final segments = GenerativeUiParser.parse(json);
+      expect(segments.length, 2);
+      expect(segments[0], isA<TextSegment>());
+      expect(
+        (segments[0] as TextSegment).text,
+        contains('Önerim'),
+      );
+      expect(segments[1], isA<GenerativeUiSegment>());
+      final uiComp = (segments[1] as GenerativeUiSegment).component;
+      expect(uiComp.type, 'radio_group');
+    });
+
+    test('hasUi structured format için true döner', () {
+      const json = '{"answer_markdown": "Merhaba", "ui": []}';
+      expect(GenerativeUiParser.hasUi(json), isTrue);
+    });
+
+    test('Yalnızca answer_markdown içeren format TextSegment üretir', () {
+      const json = '{"answer_markdown": "Sadece metin.", "ui": []}';
+      final segments = GenerativeUiParser.parse(json);
+      expect(segments.length, 1);
+      expect(segments[0], isA<TextSegment>());
+    });
+  });
+
+  group('Round 2: UiComponent type normalization Tests', () {
+    test('card_grid ve alias tipleri normalize edilir', () {
+      expect(UiComponent.fromJson({'type': 'card_grid', 'cards': []}).type, 'card_grid');
+      expect(UiComponent.fromJson({'type': 'grid_cards'}).type, 'card_grid');
+      expect(UiComponent.fromJson({'type': 'cards'}).type, 'card_grid');
+    });
+
+    test('radio_group ve alias tipleri normalize edilir', () {
+      expect(UiComponent.fromJson({'type': 'radio_group'}).type, 'radio_group');
+      expect(UiComponent.fromJson({'type': 'radio'}).type, 'radio_group');
+      expect(UiComponent.fromJson({'type': 'single_select'}).type, 'radio_group');
+    });
+
+    test('checklist ve alias tipleri normalize edilir', () {
+      expect(UiComponent.fromJson({'type': 'checklist'}).type, 'checklist');
+      expect(UiComponent.fromJson({'type': 'todo'}).type, 'checklist');
+      expect(UiComponent.fromJson({'type': 'checkbox_list'}).type, 'checklist');
+    });
+
+    test('info_card ve alias tipleri normalize edilir', () {
+      expect(UiComponent.fromJson({'type': 'info_card'}).type, 'info_card');
+      expect(UiComponent.fromJson({'type': 'info'}).type, 'info_card');
+      expect(UiComponent.fromJson({'type': 'service_card'}).type, 'info_card');
+    });
+
+    test('recommendation_card normalize edilir', () {
+      expect(UiComponent.fromJson({'type': 'recommendation_card'}).type, 'recommendation_card');
+      expect(UiComponent.fromJson({'type': 'recommendation'}).type, 'recommendation_card');
+    });
+  });
+
+  group('Round 2: New Widget Tests', () {
+    testWidgets('UiCardGridWidget kart başlıklarını gösterir', (tester) async {
+      final comp = UiComponent(
+        type: 'card_grid',
+        title: 'Test Kart Grid',
+        data: const {
+          'title': 'Test Kart Grid',
+          'cards': [
+            {'title': 'Kart Bir', 'description': 'Açıklama 1'},
+            {'title': 'Kart İki', 'description': 'Açıklama 2'},
+          ],
+        },
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: UiCardGridWidget(component: comp),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.text('Kart Bir'), findsOneWidget);
+      expect(find.text('Kart İki'), findsOneWidget);
+      expect(find.text('Test Kart Grid'), findsOneWidget);
+    });
+
+    testWidgets('UiRadioGroupWidget seçenekleri gösterir ve submit butonu çalışır',
+        (tester) async {
+      String? capturedPrompt;
+      final comp = UiComponent(
+        type: 'radio_group',
+        data: const {
+          'question': 'Tercihini seç',
+          'options': ['Seçenek A', 'Seçenek B', 'Seçenek C'],
+          'submit_label': 'Devam et',
+        },
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: UiRadioGroupWidget(
+                component: comp,
+                onAction: (act) => capturedPrompt = act.value,
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.text('Tercihini seç'), findsOneWidget);
+      expect(find.text('Seçenek A'), findsOneWidget);
+      expect(find.text('Seçenek B'), findsOneWidget);
+      expect(find.text('Seçenek C'), findsOneWidget);
+      expect(find.text('Devam et'), findsOneWidget);
+
+      // Seçenek seç ve gönder
+      await tester.tap(find.text('Seçenek B'));
+      await tester.pump();
+      await tester.tap(find.text('Devam et'));
+      await tester.pump();
+
+      expect(capturedPrompt, isNotNull);
+      expect(capturedPrompt, contains('Seçenek B'));
+    });
+
+    testWidgets('UiChecklistWidget öğeleri toggle eder ve gönderir', (tester) async {
+      String? capturedPrompt;
+      final comp = UiComponent(
+        type: 'checklist',
+        data: const {
+          'title': 'Yapılacaklar',
+          'items': [
+            {'label': 'Görev 1', 'checked': false},
+            {'label': 'Görev 2', 'checked': false},
+          ],
+          'submit_label': 'Gönder',
+        },
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: UiChecklistWidget(
+                component: comp,
+                onAction: (act) => capturedPrompt = act.value,
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.text('Yapılacaklar'), findsOneWidget);
+      expect(find.text('Görev 1'), findsOneWidget);
+      expect(find.text('Görev 2'), findsOneWidget);
+
+      // Toggle Görev 1
+      await tester.tap(find.text('Görev 1'));
+      await tester.pump();
+
+      // Gönder
+      await tester.tap(find.text('Gönder'));
+      await tester.pump();
+
+      expect(capturedPrompt, isNotNull);
+      expect(capturedPrompt, contains('Görev 1'));
+    });
+
+    testWidgets('UiInfoCardWidget başlık ve açıklamayı gösterir', (tester) async {
+      final comp = UiComponent(
+        type: 'info_card',
+        title: 'Güvenlik Uyarısı',
+        description: 'Şifrenizi kimseyle paylaşmayın.',
+        data: const {
+          'title': 'Güvenlik Uyarısı',
+          'description': 'Şifrenizi kimseyle paylaşmayın.',
+          'icon': 'lock',
+          'color': 'red',
+        },
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: UiInfoCardWidget(component: comp),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.text('Güvenlik Uyarısı'), findsOneWidget);
+      expect(find.text('Şifrenizi kimseyle paylaşmayın.'), findsOneWidget);
     });
   });
 }

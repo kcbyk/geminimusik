@@ -40,10 +40,11 @@ class GenerativeMessageView extends StatelessWidget {
           );
         } else if (seg is TextSegment) {
           if (seg.text.trim().isEmpty) return const SizedBox.shrink();
+          final processedMarkdown = _preprocessMarkdown(seg.text);
           return Padding(
             padding: const EdgeInsets.symmetric(vertical: 4),
             child: MarkdownBody(
-              data: seg.text,
+              data: processedMarkdown,
               selectable: true,
               styleSheet: MarkdownStyleSheet(
                 p: const TextStyle(
@@ -79,6 +80,43 @@ class GenerativeMessageView extends StatelessWidget {
                   borderRadius: BorderRadius.circular(10),
                 ),
                 listBullet: const TextStyle(color: GeminiColors.geminiBlue),
+                blockquote: const TextStyle(
+                  color: Color(0xFFBDC1C6),
+                  fontSize: 14.5,
+                  fontStyle: FontStyle.italic,
+                ),
+                blockquoteDecoration: const BoxDecoration(
+                  border: Border(
+                    left: BorderSide(color: GeminiColors.geminiBlue, width: 3),
+                  ),
+                ),
+                blockquotePadding: const EdgeInsets.only(left: 14, top: 4, bottom: 4),
+                tableBorder: TableBorder.all(
+                  color: const Color(0xFF3C3F41),
+                  width: 1,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                tableHead: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+                tableBody: const TextStyle(
+                  color: Color(0xFFE8EAED),
+                  fontSize: 13.5,
+                ),
+                tableCellsPadding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                horizontalRuleDecoration: BoxDecoration(
+                  border: Border(
+                    top: BorderSide(
+                      color: const Color(0xFF3C3F41).withValues(alpha: 0.6),
+                      width: 1,
+                    ),
+                  ),
+                ),
               ),
             ),
           );
@@ -86,5 +124,14 @@ class GenerativeMessageView extends StatelessWidget {
         return const SizedBox.shrink();
       }).toList(),
     );
+  }
+
+  /// Markdown checklist ve biçimlendirme ön işlemcisi
+  static String _preprocessMarkdown(String input) {
+    var text = input;
+    // - [ ] ve - [x] checklist sözdizimini görsel simgelerle zenginleştir
+    text = text.replaceAll(RegExp(r'^[ \t]*-[ \t]+\[ \][ \t]+', multiLine: true), '☐ ');
+    text = text.replaceAll(RegExp(r'^[ \t]*-[ \t]+\[[xX]\][ \t]+', multiLine: true), '☑ ');
+    return text;
   }
 }

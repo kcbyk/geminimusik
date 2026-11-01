@@ -6,17 +6,21 @@ import '../../models/generative_ui/ui_component_model.dart';
 import 'components/ui_accordion_widget.dart';
 import 'components/ui_app_mockup_widget.dart';
 import 'components/ui_buttons_widget.dart';
+import 'components/ui_card_grid_widget.dart';
 import 'components/ui_card_widget.dart';
 import 'components/ui_chart_widget.dart';
+import 'components/ui_checklist_widget.dart';
 import 'components/ui_code_block_widget.dart';
 import 'components/ui_color_palette_widget.dart';
 import 'components/ui_comparison_widget.dart';
 import 'components/ui_dashboard_widget.dart';
 import 'components/ui_form_widget.dart';
 import 'components/ui_gallery_widget.dart';
+import 'components/ui_info_card_widget.dart';
 import 'components/ui_map_widget.dart';
 import 'components/ui_product_card_widget.dart';
 import 'components/ui_progress_widget.dart';
+import 'components/ui_radio_group_widget.dart';
 import 'components/ui_table_widget.dart';
 
 class GenerativeUiRenderer extends StatelessWidget {
@@ -130,6 +134,29 @@ class GenerativeUiRenderer extends StatelessWidget {
         );
       case 'color_palette':
         return UiColorPaletteWidget(component: comp);
+      // --- Round 2: yeni bileşenler ---
+      case 'card_grid':
+        return UiCardGridWidget(
+          component: comp,
+          onAction: (act) => _handleAction(context, act),
+        );
+      case 'radio_group':
+        return UiRadioGroupWidget(
+          component: comp,
+          onAction: (act) => _handleAction(context, act),
+        );
+      case 'checklist':
+        return UiChecklistWidget(
+          component: comp,
+          onAction: (act) => _handleAction(context, act),
+        );
+      case 'info_card':
+      case 'service_card':
+      case 'recommendation_card':
+        return UiInfoCardWidget(
+          component: comp,
+          onAction: (act) => _handleAction(context, act),
+        );
       case 'column':
       case 'container':
         return Column(

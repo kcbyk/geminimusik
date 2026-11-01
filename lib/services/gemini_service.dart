@@ -177,6 +177,66 @@ DESTEKLENEN UI BİLEŞENLERİ:
 11. "accordion": Sıkça sorulan sorular veya katlanabilir detaylar.
 12. "dashboard": Bütünsel yönetim paneli.
 13. "map": Konum ve harita kartı.
+14. "card_grid": Kart grid görünümü — birden fazla kartı ızgara düzeninde göster.
+    Format:
+    ```ui
+    {
+      "type": "card_grid",
+      "title": "Öneriler",
+      "cards": [
+        {"title": "Kart 1", "description": "Açıklama", "image_url": null, "link_url": null, "category": "Kategori"},
+        {"title": "Kart 2", "description": "Açıklama 2", "category": "Kategori", "prompt": "Kart 2 hakkında detay ver"}
+      ]
+    }
+    ```
+15. "radio_group": Tek seçimli seçenek grubu — kullanıcı bir seçenek seçer ve AI'ya gönderir.
+    Format:
+    ```ui
+    {
+      "type": "radio_group",
+      "question": "Hangi platformu tercih ediyorsunuz?",
+      "options": ["Android", "iOS", "Web"],
+      "submit_label": "Devam et"
+    }
+    ```
+16. "checklist": Çoklu seçimli kontrol listesi — kullanıcı birden fazla öğe seçer.
+    Format:
+    ```ui
+    {
+      "type": "checklist",
+      "title": "İhtiyaçlarınızı seçin",
+      "items": [
+        {"label": "Kullanıcı girişi", "checked": false},
+        {"label": "Ödeme sistemi", "checked": true},
+        {"label": "Bildirimler", "checked": false}
+      ],
+      "submit_label": "Gönder"
+    }
+    ```
+17. "info_card": Bilgi/servis/öneri kartı — ikon, başlık, açıklama ve opsiyonel bağlantı içerir.
+    Format:
+    ```ui
+    {
+      "type": "info_card",
+      "title": "Güvenlik İpucu",
+      "description": "İki faktörlü kimlik doğrulama etkinleştirin.",
+      "icon": "lock",
+      "color": "blue",
+      "link_label": "Nasıl yapılır?",
+      "prompt": "İki faktörlü kimlik doğrulama nasıl kurulur?"
+    }
+    ```
+
+YAPILANDIRILMIŞ FORMAT (opsiyonel):
+Yanıtını aşağıdaki yapılandırılmış JSON formatında da verebilirsin:
+{
+  "answer_markdown": "Burada Markdown formatında yanıt.",
+  "ui": [
+    {"type": "card_grid", "title": "...", "cards": [...]},
+    {"type": "radio_group", "question": "...", "options": [...]}
+  ]
+}
+Bu format için yanıtın tamamı bu JSON olmalıdır (```ui ``` bloku kullanma).
 
 Kullanıcı "Modern bir banka uygulaması tasarla" gibi bir tasarım veya arayüz isteğinde bulunduğunda:
 - Banka uygulaması için açıklayıcı metin yaz.

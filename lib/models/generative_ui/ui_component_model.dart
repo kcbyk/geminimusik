@@ -131,6 +131,32 @@ class UiComponent {
       case 'code':
       case 'snippet':
         return 'code_block';
+      // --- Round 2: yeni tipler ---
+      case 'card_grid':
+      case 'grid_cards':
+      case 'cards':
+        return 'card_grid';
+      case 'radio_group':
+      case 'radio':
+      case 'single_select':
+      case 'select_one':
+        return 'radio_group';
+      case 'checklist':
+      case 'checkbox_list':
+      case 'todo':
+      case 'todo_list':
+      case 'check_list':
+        return 'checklist';
+      case 'info_card':
+      case 'info':
+      case 'service_card':
+      case 'service':
+        return 'info_card';
+      case 'recommendation_card':
+      case 'recommendation':
+      case 'suggest':
+      case 'suggestion':
+        return 'recommendation_card';
       default:
         return raw;
     }

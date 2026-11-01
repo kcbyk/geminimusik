@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:image_picker/image_picker.dart';
 import '../models/chat_message.dart';
 import '../services/gemini_service.dart';
@@ -14,6 +13,7 @@ import '../widgets/gemini_sparkle.dart';
 import '../services/jarvis_brain_service.dart';
 import '../services/jarvis_tts_service.dart';
 import '../widgets/generative_ui/generative_message_view.dart';
+import '../widgets/generative_ui/components/ui_streaming_indicator_widget.dart';
 
 class ChatScreen extends StatefulWidget {
   final Function(String songQuery)? onNavigateToMusicDownload;
@@ -1963,12 +1963,8 @@ class _ChatScreenState extends State<ChatScreen> {
                     ),
                   ),
                 ] else ...[
-                  const Text(
-                    'Yanıt hazırlanıyor...',
-                    style: TextStyle(
-                      color: GeminiColors.textMuted,
-                      fontSize: 13,
-                    ),
+                  const UiStreamingIndicator(
+                    label: 'Yanıt oluşturuluyor...',
                   ),
                 ],
               ],

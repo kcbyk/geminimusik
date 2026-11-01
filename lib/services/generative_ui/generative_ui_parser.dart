@@ -36,6 +36,10 @@ class GenerativeUiParser {
         (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
       try {
         final decoded = jsonDecode(trimmed);
+        // 1a. Yeni format: {"answer_markdown": "...", "ui": [...]}
+        if (decoded is Map<String, dynamic> && _isStructuredFormat(decoded)) {
+          return _parseStructuredFormat(decoded);
+        }
         if (decoded is Map<String, dynamic> && _isPotentialUiJson(decoded)) {
           return [GenerativeUiSegment(UiComponent.fromJson(decoded))];
         } else if (decoded is List) {
@@ -118,6 +122,38 @@ class GenerativeUiParser {
         json.containsKey('dashboard');
   }
 
+  /// Yapılandırılmış format kontrolü: {"answer_markdown": "...", "ui": [...]}
+  static bool _isStructuredFormat(Map<String, dynamic> json) {
+    return json.containsKey('answer_markdown') || json.containsKey('ui');
+  }
+
+  /// Yapılandırılmış formatı parse eder.
+  /// answer_markdown → TextSegment, ui dizisi → GenerativeUiSegment listesi
+  static List<ParsedMessageSegment> _parseStructuredFormat(
+      Map<String, dynamic> json) {
+    final segments = <ParsedMessageSegment>[];
+
+    final markdown = json['answer_markdown']?.toString() ?? '';
+    if (markdown.trim().isNotEmpty) {
+      segments.add(TextSegment(markdown));
+    }
+
+    final uiList = json['ui'];
+    if (uiList is List) {
+      for (final item in uiList) {
+        if (item is Map<String, dynamic>) {
+          try {
+            segments.add(GenerativeUiSegment(UiComponent.fromJson(item)));
+          } catch (e) {
+            debugPrint('Structured UI item parse hatası: $e');
+          }
+        }
+      }
+    }
+
+    return segments.isEmpty ? [TextSegment(json.toString())] : segments;
+  }
+
   /// Mesajın Generative UI içerip içermediğini hızlıca kontrol eder
   static bool hasUi(String content) {
     if (_uiBlockRegex.hasMatch(content)) return true;
@@ -127,7 +163,7 @@ class GenerativeUiParser {
       try {
         final decoded = jsonDecode(trimmed);
         if (decoded is Map<String, dynamic>) {
-          return _isPotentialUiJson(decoded);
+          return _isPotentialUiJson(decoded) || _isStructuredFormat(decoded);
         }
       } catch (_) {}
     }
