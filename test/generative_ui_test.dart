@@ -136,16 +136,22 @@ Uygulamanın kurumsal renk paleti:
   });
 
   group('Generative UI Widget Render & Etkileşim Testleri', () {
-    testWidgets(
-        'UiAppMockupWidget ekranda telefon çerçevesini ve bakiyeyi gösterir',
+    testWidgets('UiAppMockupWidget verilen konuya özgü önizlemeyi gösterir',
         (tester) async {
       const comp = UiComponent(
         type: 'app_mockup',
-        title: 'Banka Paneli',
+        title: 'Müzik Keşfi',
         data: {
-          'appName': 'NeoBank',
-          'balance': '₺ 99.999,00',
-          'cardHolder': 'CANBERK YILMAZ',
+          'app_name': 'Luna',
+          'category': 'Gece çalma listeleri',
+          'headline': 'Neon Afterglow',
+          'headline_label': 'Synth-pop · 42 dk',
+          'quick_actions': [
+            {'label': 'Dinle'}
+          ],
+          'sections': [
+            {'title': 'Yeni yayınlar', 'subtitle': 'Senin için seçildi'}
+          ],
         },
       );
 
@@ -157,9 +163,9 @@ Uygulamanın kurumsal renk paleti:
         ),
       );
 
-      expect(find.text('NeoBank'), findsWidgets);
-      expect(find.text('₺ 99.999,00'), findsOneWidget);
-      expect(find.text('CANBERK YILMAZ'), findsOneWidget);
+      expect(find.text('Luna'), findsWidgets);
+      expect(find.text('Neon Afterglow'), findsOneWidget);
+      expect(find.text('Yeni yayınlar'), findsOneWidget);
     });
 
     testWidgets(

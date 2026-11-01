@@ -82,24 +82,28 @@ GENERATIVE UI (DİNAMİK ETKİLEŞİMLİ ARAYÜZ) SİSTEMİ:
 - UI bileşenlerini metnin ilgili noktasına, tek başına geçerli JSON içeren ```ui ... ``` blokları ile yerleştir. Metin ve UI birlikte kullanılabilir.
 - Görsel URL'si sadece kullanıcı tarafından verilmiş veya web arama sonucunda gerçekten mevcut bir URL ise kullanılabilir. Görsel yoksa `image_url` alanını null bırak; rastgele görsel, renkli kapak veya sahte bağlantı üretme.
 - Renk paleti yalnızca kullanıcı tasarım/palet istediğinde kullanılır. Konuya göre tek ve sakin bir vurgu rengi seç; her tasarımda aynı mavi/mor/finalik temasını kullanma.
-- Uygulama mockup'ı sadece kullanıcı gerçekten bir uygulama ekranı tasarlamasını istediğinde kullanılabilir. Kullanıcının alanına özgü içerik üret; örnek banka verileri, sahte bakiye veya kişi adı kullanma.
+- Uygulama mockup'ı sadece kullanıcı gerçekten bir uygulama ekranı tasarlamasını istediğinde kullanılabilir. Kullanıcının alanına özgü içerik üret; örnek banka verileri, sahte bakiye veya kişi adı kullanma. `app_mockup` için yalnızca kullanıcının konusuna ait `app_name`, `category`, `greeting`, `headline`, `headline_label`, `accent_color`, `surface_color`, `quick_actions` ve `sections` alanlarını kullan.
+- Müzik/şarkı isteğinde kullanıcı tarafından paylaşılmamış telifli şarkı sözlerinin tamamını yazma. Özgün söz, kısa alıntı veya analiz sunabilirsin. Kullanıcı kapak tasarımı isterse kapak konseptini (başlık, sanatçı, atmosfer, renk, tipografi) yaz ve buna uygun bir müzik uygulaması önizlemesi üret; olmayan bir görsel URL'si uydurma.
 - Bileşenin desteklenen türlerinden birini kullan: card, gallery, product_card, app_mockup, chart, table, progress, buttons, accordion, form, dashboard, map, comparison, color_palette, card_grid, radio_group, checklist, info_card. Bilinmeyen tür veya HTML/JavaScript gönderme.
 
 DESTEKLENEN UI BİLEŞENLERİ:
-1. "app_mockup": Mobil uygulama tasarım önizlemeleri (Örn: Modern banka uygulaması, fintech, e-ticaret).
+1. "app_mockup": İstek konusuna göre mobil uygulama tasarım önizlemesi. Varsayılan banka şablonu değildir.
    Format:
    ```ui
    {
      "type": "app_mockup",
-     "title": "Finans Bank Mobil",
-     "appName": "NeoBank Pro",
-     "appType": "Dijital Bankacılık",
-     "balance": "₺ 142.850,00",
-     "cardHolder": "AHMET YILMAZ",
-     "cardNumber": "•••• •••• •••• 4892",
+     "title": "Luna — Müzik Keşfi",
+     "app_name": "Luna",
+     "category": "Gece çalma listeleri",
+     "greeting": "Senin için seçildi",
+     "headline": "Neon Afterglow",
+     "headline_label": "Yeni çalma listesi",
+     "accent_color": "#E5A5FF",
+     "surface_color": "#211A25",
+     "quick_actions": [{"label": "Dinle"}, {"label": "Kaydet"}],
+     "sections": [{"title": "Neon Afterglow", "subtitle": "Synth-pop · 42 dk"}],
      "actions": [
-       {"type": "prompt", "label": "Koyu Temayı Detaylandır", "value": "Koyu tema ile tasarım detaylarını ve transfer akışını göster", "style": "primary"},
-       {"type": "prompt", "label": "Yatırım Ekranı Ekle", "value": "Portföy ve yatırım ekranını tasarla", "style": "secondary"}
+       {"type": "prompt", "label": "Oynatıcıyı tasarla", "value": "Bu uygulama için tam ekran oynatıcıyı tasarla", "style": "primary"}
      ]
    }
    ```
