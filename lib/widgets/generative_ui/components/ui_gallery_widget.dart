@@ -26,8 +26,11 @@ class _UiGalleryWidgetState extends State<UiGalleryWidget> {
       for (final item in data['images'] as List) {
         if (item is Map) {
           items.add({
-            'url': (item['url'] ?? item['image'] ?? '').toString(),
+            'url': (item['thumbnail_url'] ?? item['url'] ?? item['image'] ?? '')
+                .toString(),
             'caption': (item['caption'] ?? item['title'] ?? '').toString(),
+            'source': (item['source_name'] ?? '').toString(),
+            'source_url': (item['source_url'] ?? '').toString(),
           });
         } else if (item is String) {
           items.add({'url': item, 'caption': ''});
@@ -37,8 +40,11 @@ class _UiGalleryWidgetState extends State<UiGalleryWidget> {
       for (final item in data['items'] as List) {
         if (item is Map) {
           items.add({
-            'url': (item['url'] ?? item['image'] ?? '').toString(),
+            'url': (item['thumbnail_url'] ?? item['url'] ?? item['image'] ?? '')
+                .toString(),
             'caption': (item['caption'] ?? item['title'] ?? '').toString(),
+            'source': (item['source_name'] ?? '').toString(),
+            'source_url': (item['source_url'] ?? '').toString(),
           });
         } else if (item is String) {
           items.add({'url': item, 'caption': ''});
@@ -203,7 +209,8 @@ class _UiGalleryWidgetState extends State<UiGalleryWidget> {
     );
   }
 
-  void _openLightbox(BuildContext context, List<Map<String, String>> items, int initialIndex) {
+  void _openLightbox(
+      BuildContext context, List<Map<String, String>> items, int initialIndex) {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (ctx) {

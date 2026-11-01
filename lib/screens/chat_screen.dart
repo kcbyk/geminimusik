@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
@@ -6,6 +7,7 @@ import '../models/chat_message.dart';
 import '../services/gemini_service.dart';
 import '../services/global_audio_service.dart';
 import '../services/web_search_service.dart';
+import '../services/image_search_service.dart';
 import '../services/speech/speech_service.dart';
 import '../services/chat_history_service.dart';
 import '../theme/gemini_colors.dart';
@@ -49,6 +51,7 @@ class _ChatScreenState extends State<ChatScreen> {
       _scrollControllerField ??= ScrollController();
 
   final GeminiService _geminiService = GeminiService();
+  final ImageSearchService _imageSearchService = ImageSearchService();
 
   final List<ChatMessage> _messages = [];
   bool _isLoading = false;
@@ -406,6 +409,14 @@ class _ChatScreenState extends State<ChatScreen> {
     return null;
   }
 
+  String? _imageSearchQuery(String text) {
+    final match = RegExp(
+            r'(.+?)(?:\s+(?:fotoğraflarını|fotoğrafları|görsellerini|görselleri|resimlerini|resimleri)\s+(?:göster|bul)|\s+(?:fotoğraf|görsel|resim)\s+bul)',
+            caseSensitive: false)
+        .firstMatch(text.trim());
+    return match?.group(1)?.trim();
+  }
+
   Future<void> _sendToGemini(
     String promptText, {
     Uint8List? imageBytes,
@@ -513,6 +524,24 @@ class _ChatScreenState extends State<ChatScreen> {
         } else {
           cleanContent =
               rawText.trim().isNotEmpty ? rawText.trim() : 'İşlem tamamlandı.';
+        }
+      }
+
+      final imageQuery = _imageSearchQuery(promptText);
+      if (imageQuery != null && imageQuery.isNotEmpty) {
+        try {
+          final images = await _imageSearchService.search(imageQuery);
+          if (images.isNotEmpty) {
+            final gallery =
+                images.map((image) => image.toGalleryJson()).toList();
+            cleanContent += '\n\n```ui\n${jsonEncode({
+                  'type': 'gallery',
+                  'title': '$imageQuery görselleri',
+                  'images': gallery
+                })}\n```';
+          }
+        } catch (_) {
+          // Metin yanıtı, görsel sağlayıcısı hata verdiğinde kaybolmaz.
         }
       }
 
@@ -1802,17 +1831,20 @@ class _ChatScreenState extends State<ChatScreen> {
                   _buildPromptChip(
                     icon: Icons.dashboard_rounded,
                     label: 'Fintech Dashboard ve Grafik',
-                    prompt: 'Haftalık finans ve harcama analizi içeren bir dashboard hazırla.',
+                    prompt:
+                        'Haftalık finans ve harcama analizi içeren bir dashboard hazırla.',
                   ),
                   _buildPromptChip(
                     icon: Icons.compare_arrows_rounded,
                     label: 'Tasarım Alternatifi Karşılaştır',
-                    prompt: 'Modern banka uygulaması için iki farklı tasarım alternatifini karşılaştır.',
+                    prompt:
+                        'Modern banka uygulaması için iki farklı tasarım alternatifini karşılaştır.',
                   ),
                   _buildPromptChip(
                     icon: Icons.dynamic_form_rounded,
                     label: 'Geri Bildirim Formu',
-                    prompt: 'Banka uygulaması için etkileşimli bir geri bildirim formu hazırla.',
+                    prompt:
+                        'Banka uygulaması için etkileşimli bir geri bildirim formu hazırla.',
                   ),
                 ],
               ),
@@ -2113,7 +2145,8 @@ class _ChatScreenState extends State<ChatScreen> {
                   GenerativeMessageView(
                     content: msg.content,
                     onActionPrompt: (prompt) => _handleSendMessage(prompt),
-                    onFormSubmit: (data, promptText) => _handleSendMessage(promptText),
+                    onFormSubmit: (data, promptText) =>
+                        _handleSendMessage(promptText),
                   ),
                   if (msg.isMusicCommand &&
                       widget.onNavigateToMusicDownload != null) ...[
