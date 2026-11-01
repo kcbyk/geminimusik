@@ -19,7 +19,11 @@ class UiCardGridWidget extends StatelessWidget {
     final title = component.title;
     final cards = _parseCards();
     final screenWidth = MediaQuery.of(context).size.width;
-    final cols = screenWidth >= 600 ? 3 : 2;
+    final cols = screenWidth >= 900
+        ? 3
+        : screenWidth >= 560
+            ? 2
+            : 1;
 
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 8),
@@ -44,7 +48,7 @@ class UiCardGridWidget extends StatelessWidget {
               crossAxisCount: cols,
               crossAxisSpacing: 10,
               mainAxisSpacing: 10,
-              childAspectRatio: 0.85,
+              childAspectRatio: cols == 1 ? 2.9 : 0.92,
             ),
             itemCount: cards.length,
             itemBuilder: (ctx, i) => _GridCard(
@@ -60,14 +64,10 @@ class UiCardGridWidget extends StatelessWidget {
   List<Map<String, dynamic>> _parseCards() {
     final raw = component.data['cards'];
     if (raw is List) {
-      return raw
-          .whereType<Map<String, dynamic>>()
-          .toList();
+      return raw.whereType<Map<String, dynamic>>().toList();
     }
     // Fallback: children as cards
-    return component.children
-        .map((c) => c.data)
-        .toList();
+    return component.children.map((c) => c.data).toList();
   }
 }
 
@@ -99,23 +99,23 @@ class _GridCardState extends State<_GridCard> {
       child: GestureDetector(
         onTap: () {
           if (prompt != null && prompt.isNotEmpty) {
-            widget.onAction?.call(UiAction(type: 'prompt', label: prompt, value: prompt));
+            widget.onAction
+                ?.call(UiAction(type: 'prompt', label: prompt, value: prompt));
           } else if (linkUrl != null && linkUrl.isNotEmpty) {
-            widget.onAction?.call(UiAction(type: 'url', label: title, value: linkUrl));
+            widget.onAction
+                ?.call(UiAction(type: 'url', label: title, value: linkUrl));
           }
         },
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 180),
           decoration: BoxDecoration(
-            color: _hovered
-                ? const Color(0xFF2D2F30)
-                : const Color(0xFF1E1F20),
+            color: _hovered ? const Color(0xFF202124) : const Color(0xFF171717),
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
               color: _hovered
-                  ? const Color(0xFF8AB4F8)
-                  : const Color(0xFF3C3F41),
-              width: _hovered ? 1.5 : 1,
+                  ? const Color(0xFFB8C7FF)
+                  : Colors.white.withValues(alpha: 0.10),
+              width: 1,
             ),
             boxShadow: _hovered
                 ? [
@@ -130,30 +130,32 @@ class _GridCardState extends State<_GridCard> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Görsel veya gradient placeholder
-              ClipRRect(
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(13)),
-                child: _CardImage(imageUrl: imageUrl, title: title),
-              ),
+              if (imageUrl != null && imageUrl.isNotEmpty)
+                ClipRRect(
+                  borderRadius:
+                      const BorderRadius.vertical(top: Radius.circular(13)),
+                  child: _CardImage(imageUrl: imageUrl),
+                ),
               Expanded(
                 child: Padding(
-                  padding: const EdgeInsets.all(10),
+                  padding: const EdgeInsets.all(14),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       if (category != null && category.isNotEmpty)
                         Container(
                           margin: const EdgeInsets.only(bottom: 4),
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF1A3A5C),
+                            color: Colors.white.withValues(alpha: 0.07),
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Text(
                             category,
                             style: const TextStyle(
-                              color: Color(0xFF8AB4F8),
-                              fontSize: 10,
+                              color: Color(0xFFD5DAE8),
+                              fontSize: 11,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -162,7 +164,7 @@ class _GridCardState extends State<_GridCard> {
                         title,
                         style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 13,
+                          fontSize: 14,
                           fontWeight: FontWeight.w600,
                         ),
                         maxLines: 2,
@@ -173,8 +175,9 @@ class _GridCardState extends State<_GridCard> {
                         Text(
                           description,
                           style: const TextStyle(
-                            color: Color(0xFF9AA0A6),
-                            fontSize: 11,
+                            color: Color(0xFFB8B8B8),
+                            fontSize: 12,
+                            height: 1.45,
                           ),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
@@ -195,15 +198,15 @@ class _GridCardState extends State<_GridCard> {
 /// Görsel widget — yükleme sırasında shimmer, hata durumunda gradient placeholder.
 class _CardImage extends StatefulWidget {
   final String? imageUrl;
-  final String title;
 
-  const _CardImage({required this.imageUrl, required this.title});
+  const _CardImage({required this.imageUrl});
 
   @override
   State<_CardImage> createState() => _CardImageState();
 }
 
-class _CardImageState extends State<_CardImage> with SingleTickerProviderStateMixin {
+class _CardImageState extends State<_CardImage>
+    with SingleTickerProviderStateMixin {
   late AnimationController _shimmerController;
   bool _imageLoaded = false;
   bool _imageError = false;
@@ -228,7 +231,7 @@ class _CardImageState extends State<_CardImage> with SingleTickerProviderStateMi
     const imgHeight = 100.0;
 
     if (widget.imageUrl == null || widget.imageUrl!.isEmpty || _imageError) {
-      return _GradientPlaceholder(title: widget.title, height: imgHeight);
+      return const SizedBox.shrink();
     }
 
     return SizedBox(
@@ -281,53 +284,10 @@ class _CardImageState extends State<_CardImage> with SingleTickerProviderStateMi
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 if (mounted) setState(() => _imageError = true);
               });
-              return _GradientPlaceholder(title: widget.title, height: imgHeight);
+              return const SizedBox.shrink();
             },
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _GradientPlaceholder extends StatelessWidget {
-  final String title;
-  final double height;
-
-  const _GradientPlaceholder({required this.title, required this.height});
-
-  static const List<List<Color>> _gradients = [
-    [Color(0xFF1A3A5C), Color(0xFF0D47A1)],
-    [Color(0xFF1B5E20), Color(0xFF2E7D32)],
-    [Color(0xFF4A148C), Color(0xFF7B1FA2)],
-    [Color(0xFF880E4F), Color(0xFFAD1457)],
-    [Color(0xFF006064), Color(0xFF00838F)],
-    [Color(0xFFBF360C), Color(0xFFE64A19)],
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    final idx = title.isEmpty ? 0 : title.codeUnitAt(0) % _gradients.length;
-    final grad = _gradients[idx];
-    return Container(
-      height: height,
-      width: double.infinity,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: grad,
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-      ),
-      child: Center(
-        child: Text(
-          title.isNotEmpty ? title[0].toUpperCase() : '?',
-          style: const TextStyle(
-            color: Colors.white54,
-            fontSize: 36,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
       ),
     );
   }

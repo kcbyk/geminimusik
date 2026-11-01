@@ -61,6 +61,18 @@ Başka bir işlem yapmak ister misiniz?
       expect(segments.first, isA<TextSegment>());
     });
 
+    test('Desteklenmeyen UI tipi Markdown fallback olarak korunur', () {
+      const content = '''
+```ui
+{"type":"custom_script","payload":"çalıştırma"}
+```
+''';
+      final segments = GenerativeUiParser.parse(content);
+      expect(segments, hasLength(1));
+      expect(segments.single, isA<TextSegment>());
+      expect((segments.single as TextSegment).text, contains('custom_script'));
+    });
+
     test('Saf JSON mesajını doğrudan Generative UI olarak çözümler', () {
       const jsonStr = '''
 {
@@ -78,7 +90,8 @@ Başka bir işlem yapmak ister misiniz?
       expect(ui.title, 'Neo Bank');
     });
 
-    test('Modern banka uygulaması tasarımı çoklu UI bloklarını doğru sıralar', () {
+    test('Modern banka uygulaması tasarımı çoklu UI bloklarını doğru sıralar',
+        () {
       const bankResponse = '''
 Sizin için modern bir banka uygulaması tasarımı hazırladım:
 
@@ -123,7 +136,9 @@ Uygulamanın kurumsal renk paleti:
   });
 
   group('Generative UI Widget Render & Etkileşim Testleri', () {
-    testWidgets('UiAppMockupWidget ekranda telefon çerçevesini ve bakiyeyi gösterir', (tester) async {
+    testWidgets(
+        'UiAppMockupWidget ekranda telefon çerçevesini ve bakiyeyi gösterir',
+        (tester) async {
       const comp = UiComponent(
         type: 'app_mockup',
         title: 'Banka Paneli',
@@ -147,7 +162,9 @@ Uygulamanın kurumsal renk paleti:
       expect(find.text('CANBERK YILMAZ'), findsOneWidget);
     });
 
-    testWidgets('UiColorPaletteWidget renk kutularını ve hex kodlarını listeler', (tester) async {
+    testWidgets(
+        'UiColorPaletteWidget renk kutularını ve hex kodlarını listeler',
+        (tester) async {
       const comp = UiComponent(
         type: 'color_palette',
         title: 'Palet',
@@ -172,7 +189,9 @@ Uygulamanın kurumsal renk paleti:
       expect(find.text('#1E3A8A'), findsOneWidget);
     });
 
-    testWidgets('UiComparisonWidget alternatifleri ve seçim butonlarını gösterir', (tester) async {
+    testWidgets(
+        'UiComparisonWidget alternatifleri ve seçim butonlarını gösterir',
+        (tester) async {
       String? selectedPrompt;
 
       const comp = UiComponent(
@@ -214,7 +233,8 @@ Uygulamanın kurumsal renk paleti:
       expect(selectedPrompt, 'Minimalist tasarımı seçtim');
     });
 
-    testWidgets('UiFormWidget veri toplayıp onSubmit çağrısını tetikler', (tester) async {
+    testWidgets('UiFormWidget veri toplayıp onSubmit çağrısını tetikler',
+        (tester) async {
       Map<String, dynamic>? submittedData;
       String? submittedPrompt;
 
@@ -270,7 +290,9 @@ Uygulamanın kurumsal renk paleti:
       expect(submittedPrompt, contains('Ahmet'));
     });
 
-    testWidgets('GenerativeMessageView hem metni hem UI bileşenlerini birlikte render eder', (tester) async {
+    testWidgets(
+        'GenerativeMessageView hem metni hem UI bileşenlerini birlikte render eder',
+        (tester) async {
       const message = '''
 Merhabalar! İşte istediğiniz dashboard:
 
@@ -309,7 +331,8 @@ Devam etmek ister misiniz?
       expect(find.textContaining('Devam etmek ister misiniz?'), findsOneWidget);
     });
 
-    testWidgets('UiGalleryWidget ve UiProductCardWidget sorunsuz render edilir', (tester) async {
+    testWidgets('UiGalleryWidget ve UiProductCardWidget sorunsuz render edilir',
+        (tester) async {
       const galleryComp = UiComponent(
         type: 'gallery',
         title: 'Örnek Galeri',
@@ -354,7 +377,9 @@ Devam etmek ister misiniz?
       expect(find.text('%20 İndirim'), findsOneWidget);
     });
 
-    testWidgets('UiProgressWidget, UiAccordionWidget ve UiMapWidget render edilir', (tester) async {
+    testWidgets(
+        'UiProgressWidget, UiAccordionWidget ve UiMapWidget render edilir',
+        (tester) async {
       const progressComp = UiComponent(
         type: 'progress',
         title: 'Geliştirme Süreci',
@@ -372,7 +397,10 @@ Devam etmek ister misiniz?
         title: 'Sıkça Sorulan Sorular',
         data: {
           'items': [
-            {'title': 'Kredi kartı aidatı var mı?', 'content': 'Hayır, aidatsız kart sunulmaktadır.'},
+            {
+              'title': 'Kredi kartı aidatı var mı?',
+              'content': 'Hayır, aidatsız kart sunulmaktadır.'
+            },
           ],
         },
       );
@@ -459,7 +487,8 @@ Devam etmek ister misiniz?
 
   group('Round 2: UiComponent type normalization Tests', () {
     test('card_grid ve alias tipleri normalize edilir', () {
-      expect(UiComponent.fromJson({'type': 'card_grid', 'cards': []}).type, 'card_grid');
+      expect(UiComponent.fromJson({'type': 'card_grid', 'cards': []}).type,
+          'card_grid');
       expect(UiComponent.fromJson({'type': 'grid_cards'}).type, 'card_grid');
       expect(UiComponent.fromJson({'type': 'cards'}).type, 'card_grid');
     });
@@ -467,7 +496,8 @@ Devam etmek ister misiniz?
     test('radio_group ve alias tipleri normalize edilir', () {
       expect(UiComponent.fromJson({'type': 'radio_group'}).type, 'radio_group');
       expect(UiComponent.fromJson({'type': 'radio'}).type, 'radio_group');
-      expect(UiComponent.fromJson({'type': 'single_select'}).type, 'radio_group');
+      expect(
+          UiComponent.fromJson({'type': 'single_select'}).type, 'radio_group');
     });
 
     test('checklist ve alias tipleri normalize edilir', () {
@@ -483,8 +513,10 @@ Devam etmek ister misiniz?
     });
 
     test('recommendation_card normalize edilir', () {
-      expect(UiComponent.fromJson({'type': 'recommendation_card'}).type, 'recommendation_card');
-      expect(UiComponent.fromJson({'type': 'recommendation'}).type, 'recommendation_card');
+      expect(UiComponent.fromJson({'type': 'recommendation_card'}).type,
+          'recommendation_card');
+      expect(UiComponent.fromJson({'type': 'recommendation'}).type,
+          'recommendation_card');
     });
   });
 
@@ -518,7 +550,8 @@ Devam etmek ister misiniz?
       expect(find.text('Test Kart Grid'), findsOneWidget);
     });
 
-    testWidgets('UiRadioGroupWidget seçenekleri gösterir ve submit butonu çalışır',
+    testWidgets(
+        'UiRadioGroupWidget seçenekleri gösterir ve submit butonu çalışır',
         (tester) async {
       String? capturedPrompt;
       final comp = UiComponent(
@@ -560,7 +593,8 @@ Devam etmek ister misiniz?
       expect(capturedPrompt, contains('Seçenek B'));
     });
 
-    testWidgets('UiChecklistWidget öğeleri toggle eder ve gönderir', (tester) async {
+    testWidgets('UiChecklistWidget öğeleri toggle eder ve gönderir',
+        (tester) async {
       String? capturedPrompt;
       final comp = UiComponent(
         type: 'checklist',
@@ -604,7 +638,8 @@ Devam etmek ister misiniz?
       expect(capturedPrompt, contains('Görev 1'));
     });
 
-    testWidgets('UiInfoCardWidget başlık ve açıklamayı gösterir', (tester) async {
+    testWidgets('UiInfoCardWidget başlık ve açıklamayı gösterir',
+        (tester) async {
       final comp = UiComponent(
         type: 'info_card',
         title: 'Güvenlik Uyarısı',

@@ -17,6 +17,32 @@ class GenerativeUiSegment extends ParsedMessageSegment {
 }
 
 class GenerativeUiParser {
+  static const Set<String> _supportedTypes = {
+    'card',
+    'gallery',
+    'product_card',
+    'app_mockup',
+    'chart',
+    'table',
+    'progress',
+    'buttons',
+    'accordion',
+    'form',
+    'dashboard',
+    'code_block',
+    'map',
+    'comparison',
+    'color_palette',
+    'card_grid',
+    'radio_group',
+    'checklist',
+    'info_card',
+    'recommendation_card',
+    'column',
+    'row',
+    'container',
+  };
+
   /// Desteklenen UI kod bloğu dilleri
   static final RegExp _uiBlockRegex = RegExp(
     r'```(?:ui|generative_ui|json:ui)\s*([\s\S]*?)```',
@@ -40,12 +66,12 @@ class GenerativeUiParser {
         if (decoded is Map<String, dynamic> && _isStructuredFormat(decoded)) {
           return _parseStructuredFormat(decoded);
         }
-        if (decoded is Map<String, dynamic> && _isPotentialUiJson(decoded)) {
+        if (decoded is Map<String, dynamic> && _isValidUiJson(decoded)) {
           return [GenerativeUiSegment(UiComponent.fromJson(decoded))];
         } else if (decoded is List) {
           final items = <UiComponent>[];
           for (final item in decoded) {
-            if (item is Map<String, dynamic> && _isPotentialUiJson(item)) {
+            if (item is Map<String, dynamic> && _isValidUiJson(item)) {
               items.add(UiComponent.fromJson(item));
             }
           }
@@ -85,14 +111,22 @@ class GenerativeUiParser {
       if (jsonStr.isNotEmpty) {
         try {
           final decoded = jsonDecode(jsonStr);
-          if (decoded is Map<String, dynamic>) {
+          if (decoded is Map<String, dynamic> && _isValidUiJson(decoded)) {
             segments.add(GenerativeUiSegment(UiComponent.fromJson(decoded)));
           } else if (decoded is List) {
+            var foundUi = false;
             for (final item in decoded) {
-              if (item is Map<String, dynamic>) {
+              if (item is Map<String, dynamic> && _isValidUiJson(item)) {
                 segments.add(GenerativeUiSegment(UiComponent.fromJson(item)));
+                foundUi = true;
               }
             }
+            if (!foundUi) {
+              segments.add(TextSegment('```json\n$jsonStr\n```'));
+            }
+          } else {
+            // Bilinmeyen şema kaybolmasın; Markdown kod bloğu olarak görünsün.
+            segments.add(TextSegment('```json\n$jsonStr\n```'));
           }
         } catch (e) {
           debugPrint('Generative UI JSON parse hatası: $e');
@@ -122,6 +156,15 @@ class GenerativeUiParser {
         json.containsKey('dashboard');
   }
 
+  /// Renderer katalogunun dışındaki tipleri sessizce kabul etmeyiz. Böylece
+  /// modelin hatalı JSON'u sıradan bir kart gibi gösterilmez.
+  static bool _isValidUiJson(Map<String, dynamic> json) {
+    if (!_isPotentialUiJson(json)) return false;
+    final rawType = (json['type'] ?? json['component'] ?? '').toString();
+    final type = UiComponent.fromJson({'type': rawType}).type;
+    return _supportedTypes.contains(type);
+  }
+
   /// Yapılandırılmış format kontrolü: {"answer_markdown": "...", "ui": [...]}
   static bool _isStructuredFormat(Map<String, dynamic> json) {
     return json.containsKey('answer_markdown') || json.containsKey('ui');
@@ -141,7 +184,7 @@ class GenerativeUiParser {
     final uiList = json['ui'];
     if (uiList is List) {
       for (final item in uiList) {
-        if (item is Map<String, dynamic>) {
+        if (item is Map<String, dynamic> && _isValidUiJson(item)) {
           try {
             segments.add(GenerativeUiSegment(UiComponent.fromJson(item)));
           } catch (e) {
