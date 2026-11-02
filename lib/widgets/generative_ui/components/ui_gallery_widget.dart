@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../models/generative_ui/ui_component_model.dart';
 import '../../../theme/gemini_colors.dart';
 
@@ -31,6 +32,11 @@ class _UiGalleryWidgetState extends State<UiGalleryWidget> {
             'caption': (item['caption'] ?? item['title'] ?? '').toString(),
             'source': (item['source_name'] ?? '').toString(),
             'source_url': (item['source_url'] ?? '').toString(),
+            'image_url':
+                (item['image_url'] ?? item['url'] ?? item['image'] ?? '')
+                    .toString(),
+            'photographer': (item['photographer'] ?? '').toString(),
+            'dimensions': _dimensions(item),
           });
         } else if (item is String) {
           items.add({'url': item, 'caption': ''});
@@ -45,6 +51,11 @@ class _UiGalleryWidgetState extends State<UiGalleryWidget> {
             'caption': (item['caption'] ?? item['title'] ?? '').toString(),
             'source': (item['source_name'] ?? '').toString(),
             'source_url': (item['source_url'] ?? '').toString(),
+            'image_url':
+                (item['image_url'] ?? item['url'] ?? item['image'] ?? '')
+                    .toString(),
+            'photographer': (item['photographer'] ?? '').toString(),
+            'dimensions': _dimensions(item),
           });
         } else if (item is String) {
           items.add({'url': item, 'caption': ''});
@@ -60,6 +71,14 @@ class _UiGalleryWidgetState extends State<UiGalleryWidget> {
     }
 
     return items;
+  }
+
+  String _dimensions(Map item) {
+    final width = item['width'];
+    final height = item['height'];
+    return width is num && height is num
+        ? '${width.toInt()} × ${height.toInt()}'
+        : '';
   }
 
   @override
@@ -154,6 +173,38 @@ class _UiGalleryWidgetState extends State<UiGalleryWidget> {
               },
             ),
           ),
+          if ((items[_currentIndex]['source'] ?? '').isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 10, 14, 4),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      [
+                        items[_currentIndex]['source'],
+                        items[_currentIndex]['photographer'],
+                        items[_currentIndex]['dimensions']
+                      ]
+                          .where((value) => value != null && value.isNotEmpty)
+                          .join(' · '),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                          color: Color(0xFFB8B8B8), fontSize: 11),
+                    ),
+                  ),
+                  TextButton.icon(
+                    onPressed: () =>
+                        _openSource(items[_currentIndex]['source_url']),
+                    icon: const Icon(Icons.open_in_new_rounded, size: 14),
+                    label: const Text('Kaynak'),
+                    style: TextButton.styleFrom(
+                        foregroundColor: GeminiColors.geminiCyan,
+                        textStyle: const TextStyle(fontSize: 11)),
+                  ),
+                ],
+              ),
+            ),
           if (items.length > 1)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 10),
@@ -190,6 +241,13 @@ class _UiGalleryWidgetState extends State<UiGalleryWidget> {
       );
     }
     return _buildPlaceholder();
+  }
+
+  Future<void> _openSource(String? value) async {
+    final uri = Uri.tryParse(value ?? '');
+    if (uri != null && uri.scheme == 'https') {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
   }
 
   Widget _buildPlaceholder() {
@@ -235,7 +293,9 @@ class _UiGalleryWidgetState extends State<UiGalleryWidget> {
                     final it = items[i];
                     return Center(
                       child: InteractiveViewer(
-                        child: _buildImage(it['url'] ?? ''),
+                        child: _buildImage(it['image_url']?.isNotEmpty == true
+                            ? it['image_url']!
+                            : (it['url'] ?? '')),
                       ),
                     );
                   },

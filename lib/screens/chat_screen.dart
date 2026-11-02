@@ -528,8 +528,12 @@ class _ChatScreenState extends State<ChatScreen> {
       final imageQuery = _imageSearchQuery(promptText);
       if (imageQuery != null && imageQuery.isNotEmpty) {
         try {
-          final images =
-              await WebSearchService.instance.searchImagePreviews(imageQuery);
+          var images =
+              await WebSearchService.instance.searchPinterestImages(imageQuery);
+          if (images.isEmpty) {
+            images =
+                await WebSearchService.instance.searchImagePreviews(imageQuery);
+          }
           if (images.isNotEmpty) {
             final gallery =
                 images.map((image) => image.toGalleryJson()).toList();

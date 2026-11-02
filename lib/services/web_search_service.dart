@@ -21,18 +21,27 @@ class WebImagePreview {
   final String title;
   final String sourceUrl;
   final String sourceName;
+  final String? photographer;
+  final int? width;
+  final int? height;
   const WebImagePreview(
       {required this.thumbnailUrl,
       required this.imageUrl,
       required this.title,
       required this.sourceUrl,
-      required this.sourceName});
+      required this.sourceName,
+      this.photographer,
+      this.width,
+      this.height});
   Map<String, dynamic> toGalleryJson() => {
         'thumbnail_url': thumbnailUrl,
         'image_url': imageUrl,
         'title': title,
         'source_url': sourceUrl,
-        'source_name': sourceName
+        'source_name': sourceName,
+        if (photographer != null) 'photographer': photographer,
+        if (width != null) 'width': width,
+        if (height != null) 'height': height,
       };
 }
 
@@ -42,6 +51,8 @@ class WebSearchService {
 
   static const String _baseUrl = 'https://mp3-apisi.onrender.com';
   static const String _apiKey = 'sk-2b70a1771b2d8f8528f8810c';
+  // Pinterest görsel araması için API sağlayıcısının uygulama anahtarı.
+  static const String _pinterestApiKey = 'sk-5cd9869e8aa51831e7f5c696';
 
   final Dio _dio = Dio(
     BaseOptions(
@@ -143,6 +154,58 @@ class WebSearchService {
     }
     _imagePreviewCache[cacheKey] = previews;
     return previews;
+  }
+
+  /// Mevcut backend'in Pinterest arama çıktısını normal galeri verisine çevirir.
+  /// Sadece HTTPS görsel ve kaynak bağlantıları kabul edilir.
+  Future<List<WebImagePreview>> searchPinterestImages(String query,
+      {int limit = 10}) async {
+    final cacheKey = 'pinterest:${query.trim().toLowerCase()}';
+    if (_imagePreviewCache.containsKey(cacheKey)) {
+      return _imagePreviewCache[cacheKey]!;
+    }
+    try {
+      final response = await _dio.get('/api/v1/pinterest', queryParameters: {
+        'q': query,
+        'limit': limit.clamp(1, 12),
+        'key': _pinterestApiKey,
+      });
+      final data = response.data;
+      final rawImages = data is Map ? data['gorseller'] : null;
+      if (rawImages is! List) return const [];
+      final previews = rawImages
+          .whereType<Map>()
+          .map((item) {
+            String secure(dynamic value) {
+              final valueString = value?.toString() ?? '';
+              return Uri.tryParse(valueString)?.scheme == 'https'
+                  ? valueString
+                  : '';
+            }
+
+            return WebImagePreview(
+              thumbnailUrl: secure(item['kucuk']),
+              imageUrl: secure(item['gorsel']),
+              title: (item['baslik'] ?? item['ozet'] ?? query).toString(),
+              sourceUrl: secure(item['site']),
+              sourceName: (item['site_domain'] ?? item['kaynak'] ?? 'Pinterest')
+                  .toString(),
+              photographer: item['fotografci']?.toString(),
+              width: (item['genislik'] as num?)?.toInt(),
+              height: (item['yukseklik'] as num?)?.toInt(),
+            );
+          })
+          .where((image) =>
+              image.thumbnailUrl.isNotEmpty &&
+              image.imageUrl.isNotEmpty &&
+              image.sourceUrl.isNotEmpty)
+          .toList();
+      _imagePreviewCache[cacheKey] = previews;
+      return previews;
+    } catch (error) {
+      debugPrint('Pinterest görsel arama hatası: $error');
+      return const [];
+    }
   }
 
   String? _extractPageImage(String? content) {
