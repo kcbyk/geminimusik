@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../../services/image_download_service.dart';
 import '../../../models/generative_ui/ui_component_model.dart';
 import '../../../theme/gemini_colors.dart';
 
@@ -273,6 +274,7 @@ class _UiGalleryWidgetState extends State<UiGalleryWidget> {
       MaterialPageRoute(
         builder: (ctx) {
           int active = initialIndex;
+          var downloadArmed = false;
           return StatefulBuilder(
             builder: (ctx, setLightboxState) {
               return Scaffold(
@@ -285,20 +287,89 @@ class _UiGalleryWidgetState extends State<UiGalleryWidget> {
                     style: const TextStyle(color: Colors.white, fontSize: 16),
                   ),
                 ),
-                body: PageView.builder(
-                  itemCount: items.length,
-                  controller: PageController(initialPage: initialIndex),
-                  onPageChanged: (i) => setLightboxState(() => active = i),
-                  itemBuilder: (ctx, i) {
-                    final it = items[i];
-                    return Center(
-                      child: InteractiveViewer(
-                        child: _buildImage(it['image_url']?.isNotEmpty == true
+                body: Stack(
+                  children: [
+                    PageView.builder(
+                      itemCount: items.length,
+                      controller: PageController(initialPage: initialIndex),
+                      onPageChanged: (i) => setLightboxState(() => active = i),
+                      itemBuilder: (ctx, i) {
+                        final it = items[i];
+                        final imageUrl = it['image_url']?.isNotEmpty == true
                             ? it['image_url']!
-                            : (it['url'] ?? '')),
+                            : (it['url'] ?? '');
+                        return Center(
+                          child: GestureDetector(
+                            onLongPressStart: (_) =>
+                                setLightboxState(() => downloadArmed = false),
+                            onLongPressMoveUpdate: (details) {
+                              if (details.globalPosition.dy >
+                                  MediaQuery.of(ctx).size.height - 150) {
+                                setLightboxState(() => downloadArmed = true);
+                              }
+                            },
+                            onLongPressEnd: (_) {
+                              if (!downloadArmed) return;
+                              final safeTitle = (it['caption'] ?? 'gorsel')
+                                  .replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
+                              ImageDownloadService.download(
+                                url: imageUrl,
+                                fileName:
+                                    '${safeTitle.isEmpty ? 'gorsel' : safeTitle}.jpg',
+                              ).then((_) {
+                                if (ctx.mounted) {
+                                  ScaffoldMessenger.of(ctx).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                          'İndirme İndirilenler klasörüne eklendi.'),
+                                    ),
+                                  );
+                                }
+                              }).catchError((_) {
+                                if (ctx.mounted) {
+                                  ScaffoldMessenger.of(ctx).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Görsel indirilemedi.'),
+                                    ),
+                                  );
+                                }
+                              });
+                              setLightboxState(() => downloadArmed = false);
+                            },
+                            child: InteractiveViewer(
+                              child: _buildImage(imageUrl),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                    if (downloadArmed)
+                      Align(
+                        alignment: Alignment.bottomCenter,
+                        child: Container(
+                          margin: const EdgeInsets.all(24),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 18, vertical: 14),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF292929),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: GeminiColors.geminiCyan),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.download_rounded,
+                                  color: GeminiColors.geminiCyan),
+                              SizedBox(width: 8),
+                              Text('İndirmek için bırak',
+                                  style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w600)),
+                            ],
+                          ),
+                        ),
                       ),
-                    );
-                  },
+                  ],
                 ),
               );
             },

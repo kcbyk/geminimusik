@@ -412,7 +412,25 @@ class _ChatScreenState extends State<ChatScreen> {
             r'(.+?)(?:\s+(?:fotoğraflarını|fotoğrafları|görsellerini|görselleri|resimlerini|resimleri)\s+(?:göster|bul)|\s+(?:fotoğraf|görsel|resim)\s+bul)',
             caseSensitive: false)
         .firstMatch(text.trim());
-    return match?.group(1)?.trim();
+    if (match != null) return match.group(1)?.trim();
+    final personMatch = RegExp(
+      r'^(.+?)\s+(?:kimdir|kimdi|hakkında bilgi ver)$',
+      caseSensitive: false,
+    ).firstMatch(text.trim());
+    final candidate = personMatch?.group(1)?.trim();
+    return candidate != null && candidate.split(RegExp(r'\s+')).length <= 5
+        ? candidate
+        : null;
+  }
+
+  String? _automaticWebQuery(String text) {
+    final lower = text.toLowerCase().trim();
+    if (lower.length < 4 || _checkExplicitSearch(text) != null) return null;
+    final needsFreshOrFactualAnswer = RegExp(
+      r'\b(kimdir|kimdi|nedir|nerede|ne zaman|nasıl|neden|kaç|hangi|güncel|son|bugün|yarın|haber|fiyat|maç|hava durumu|özellikleri|hakkında)\b',
+      caseSensitive: false,
+    ).hasMatch(lower);
+    return needsFreshOrFactualAnswer ? text : null;
   }
 
   Future<void> _sendToGemini(
@@ -440,11 +458,13 @@ class _ChatScreenState extends State<ChatScreen> {
       // 1. ÖN KONTROL: Kullanıcı doğrudan "webde ara: ...", "internetten ara: ..." dedi mi?
       String currentPrompt = promptWithMode;
       final explicitQuery = _checkExplicitSearch(promptText);
-      if (explicitQuery != null && explicitQuery.isNotEmpty) {
+      final automaticQuery = _automaticWebQuery(promptText);
+      final initialSearchQuery = explicitQuery ?? automaticQuery;
+      if (initialSearchQuery != null && initialSearchQuery.isNotEmpty) {
         wasWebSearch = true;
-        executedSearchQuery = explicitQuery;
+        executedSearchQuery = initialSearchQuery;
         final results = await WebSearchService.instance
-            .search(explicitQuery, limit: 5, includeDetail: false);
+            .search(initialSearchQuery, limit: 5, includeDetail: false);
         if (results.isNotEmpty) {
           collectedSources =
               results.map((r) => {'title': r.title, 'url': r.url}).toList();
@@ -454,8 +474,8 @@ class _ChatScreenState extends State<ChatScreen> {
             _activeSearchingSources = collectedSources;
           });
         }
-        final webContext =
-            WebSearchService.instance.formatForPrompt(results, explicitQuery);
+        final webContext = WebSearchService.instance
+            .formatForPrompt(results, initialSearchQuery);
         currentPrompt = results.isNotEmpty
             ? '$promptWithMode\n\n$webContext'
             : '$promptWithMode\n\n[WEB_ARAMA_SONUCLARI]\nArama yapıldı ancak sonuç boş döndü. Lütfen kullanıcının sorusunu doğrudan yanıtla.\n[/WEB_ARAMA_SONUCLARI]';
