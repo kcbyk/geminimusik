@@ -52,3 +52,14 @@ subprojects {
 tasks.register<Delete>("clean") {
     delete(rootProject.layout.buildDirectory)
 }
+
+// Android lint ("lintVital*") AGP 9 + eklenti kombinasyonunda çökebiliyor
+// (ör. image_picker_android:lintVitalAnalyzeRelease / CommentDetector).
+// APK üretimi için gerekli olmadığından bu görevleri kapatıyoruz.
+subprojects {
+    tasks.configureEach {
+        if (name.startsWith("lintVital") || name == "lint" || name == "lintDebug") {
+            enabled = false
+        }
+    }
+}
