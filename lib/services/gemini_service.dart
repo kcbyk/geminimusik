@@ -294,7 +294,8 @@ DESTEKLENEN UI BİLEŞENLERİ:
     }
     ```
 - "album", "tracklist" ve "artist" bileşenlerindeki parça/görsel bilgileri yalnızca doğrulanmış kaynaklardan gelmeli; bilinmeyen alanı boş bırak.
-- GÖRSELLER: Kullanıcı "görsellerini/fotoğraflarını göster", "kapak", "resim" gibi bir istek yaptığında markdown içine görsel URL'si yazma veya uydurma; uygulama gerçek görselleri (albüm kapağı, Wikipedia fotoğrafı, açık lisanslı görsel) kendisi bulup yanıtın içine yerleştiriyor. Sen sadece konuyu kısa bir başlıkla aç ve görselleri kısaca yorumla.
+- GÖRSELLER: Kullanıcı "görsellerini/fotoğraflarını göster", "kapak", "resim" gibi bir istek yaptığında markdown içine görsel URL'si yazma veya uydurma; uygulama gerçek görselleri (albüm kapağı, Wikipedia fotoğrafı, Pinterest/açık lisanslı görsel) kendisi bulup yanıtın içine yerleştiriyor. Sen sadece konuyu kısa bir başlıkla aç ve görselleri kısaca yorumla.
+- KART GÖRSELLERİ: `card_grid`, `card`, `product_card`, `info_card` ve `gallery` bileşenlerinde `image_url` alanını SEN doldurma (null bırak); uygulama her kart için gerçek bir görsel bulup yerleştiriyor. Karakter/kişi/ürün kartlarında başlığı net ve aranabilir yaz (ör. "Ellie", "Abby", "Joel"), açıklamaya eserin adını ekle (ör. "The Last of Us Part II").
 
 YAPILANDIRILMIŞ FORMAT (nadir, opsiyonel):
 Yanıtını aşağıdaki yapılandırılmış JSON formatında da verebilirsin:

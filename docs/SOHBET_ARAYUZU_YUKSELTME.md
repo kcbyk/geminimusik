@@ -200,3 +200,35 @@ flutter run --dart-define=DEMO_MODE=true
 - `test/music_image_test.dart` — 24 test (ayrıştırma, alaka, intent, kolaj, widget).
 - `tool/live_check.dart` — canlı ağ kontrolü: `flutter test tool/live_check.dart`.
   CURCUNA / Wegh için Deezer'dan kapak + 9 parça geldiği doğrulandı.
+
+### Ek düzeltme (kart görselleri + kaynak konumu)
+
+**Sorun 1 — kartlarda fotoğraf yok.** `card_grid` / `card` / `info_card` /
+`gallery` bloklarındaki `image_url` alanları boş geliyordu (model görsel
+uydurmuyor), uygulama da bu türleri doldurmuyordu. "The Last of Us Part II
+karakterlerinin görselleri" gibi isteklerde kartlar fotoğrafsız kalıyordu.
+
+Çözüm: `lib/services/ui_image_enricher.dart`
+- Her kart için başlık + blok başlığı ile görsel araması yapar
+  (ör. `Ellie The Last of Us Part II karakterleri`), sonucu `image_url` alanına yazar.
+- Kartlar paralel aranır (en fazla 8), var olan görseller korunur, yalnızca
+  `https` kabul edilir, bulunamazsa blok bozulmaz.
+- Galeri boşsa başlıktan 6 görsele kadar doldurulur.
+- Aynı yol müzik dışı her konu için geçerli (oyun, dizi, film, ürün, kişi…).
+
+**Görsel keşif zinciri hızlandı.** `image_discovery_service.dart`
+- Wikipedia + Pinterest (arka uç) + Commons artık **paralel** çalışıyor;
+  kart görselleri için `discoverOne()` yalnızca Pinterest + Wikipedia dener.
+- Pinterest, oyun/dizi/film karakterleri için en isabetli kaynak olduğu için
+  sıralamada öne alındı; Openverse yalnızca hiç sonuç yoksa çağrılıyor.
+- Sonuç boşsa sorgu sadeleştirilip (`… deki karakterlerin görselleri` → varlık
+  adı) tekrar deneniyor.
+
+**Sorun 2 — kaynaklar en alttaydı.** `ChatSourcesStrip` mesajın en dibinde,
+aksiyonların üstünde duruyordu. Artık `ChatActivityRow` içinde:
+"9s düşündü · 9 web sitesi arandı ⌄" satırı açıldığında adımların altında
+kaynak listesi görünüyor. `AnimatedCrossFade` yerine `AnimatedSize` kullanıldı;
+kapalıyken kaynaklar hiç kurulmuyor.
+
+**Testler:** `test/music_image_test.dart` içinde kart zenginleştirme (6 test) ve
+kaynak konumu (1 widget testi); toplam 188 test.

@@ -86,6 +86,7 @@ class WebSearchService {
     String query, {
     int limit = 5,
     bool includeDetail = false,
+    Duration? timeout,
   }) async {
     for (int attempt = 0; attempt < 2; attempt++) {
       try {
@@ -97,6 +98,9 @@ class WebSearchService {
             if (includeDetail) 'detay': 1,
             'key': _apiKey,
           },
+          options: timeout == null
+              ? null
+              : Options(receiveTimeout: timeout, sendTimeout: timeout),
         );
 
         if (response.statusCode == 200 && response.data != null) {
@@ -131,13 +135,13 @@ class WebSearchService {
   /// Twitter Card görsellerini kullanır. Sağlayıcı HTML ya da görsel URL
   /// vermiyorsa boş döner; asla tahmini bir resim URL'si üretmez.
   Future<List<WebImagePreview>> searchImagePreviews(String query,
-      {int limit = 10}) async {
+      {int limit = 10, Duration? timeout}) async {
     final cacheKey = query.trim().toLowerCase();
     if (_imagePreviewCache.containsKey(cacheKey)) {
       return _imagePreviewCache[cacheKey]!;
     }
-    final results =
-        await search(query, limit: limit.clamp(1, 12), includeDetail: true);
+    final results = await search(query,
+        limit: limit.clamp(1, 12), includeDetail: true, timeout: timeout);
     final previews = <WebImagePreview>[];
     for (final result in results) {
       final imageUrl = _extractPageImage(result.pageText);
@@ -159,17 +163,26 @@ class WebSearchService {
   /// Mevcut backend'in Pinterest arama çıktısını normal galeri verisine çevirir.
   /// Sadece HTTPS görsel ve kaynak bağlantıları kabul edilir.
   Future<List<WebImagePreview>> searchPinterestImages(String query,
-      {int limit = 10}) async {
+      {int limit = 10, Duration? timeout}) async {
     final cacheKey = 'pinterest:${query.trim().toLowerCase()}';
     if (_imagePreviewCache.containsKey(cacheKey)) {
       return _imagePreviewCache[cacheKey]!;
     }
     try {
-      final response = await _dio.get('/api/v1/pinterest', queryParameters: {
-        'q': query,
-        'limit': limit.clamp(1, 12),
-        'key': _pinterestApiKey,
-      });
+      final response = await _dio.get(
+        '/api/v1/pinterest',
+        queryParameters: {
+          'q': query,
+          'limit': limit.clamp(1, 12),
+          'key': _pinterestApiKey,
+        },
+        options: timeout == null
+            ? null
+            : Options(
+                receiveTimeout: timeout,
+                sendTimeout: timeout,
+              ),
+      );
       final data = response.data;
       final rawImages = data is Map ? data['gorseller'] : null;
       if (rawImages is! List) return const [];

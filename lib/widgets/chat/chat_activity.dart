@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../theme/chat_ui.dart';
+import 'chat_sources.dart';
 
 /// ChatGPT'deki "9s düşündü ⌄" satırının karşılığı.
 ///
@@ -20,12 +21,17 @@ class ChatActivityRow extends StatefulWidget {
   /// Modele özgü ek adımlar ("İçerik değerlendiriliyor" gibi).
   final List<String> extraSteps;
 
+  /// Yanıt için kullanılan kaynaklar. Açılır bölümün altında listelenir —
+  /// böylece kaynaklar mesajın en dibinde değil, "web arandı" bölümünde durur.
+  final List<Map<String, String>> sources;
+
   const ChatActivityRow({
     super.key,
     this.thinking,
     this.sourceCount = 0,
     this.searchQuery,
     this.extraSteps = const [],
+    this.sources = const [],
   });
 
   @override
@@ -68,7 +74,8 @@ class _ChatActivityRowState extends State<ChatActivityRow> {
   @override
   Widget build(BuildContext context) {
     final steps = _steps;
-    final canExpand = steps.isNotEmpty;
+    final sources = widget.sources;
+    final canExpand = steps.isNotEmpty || sources.isNotEmpty;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
@@ -117,50 +124,57 @@ class _ChatActivityRowState extends State<ChatActivityRow> {
               ),
             ),
           ),
-          AnimatedCrossFade(
-            firstChild: const SizedBox(width: double.infinity, height: 0),
-            secondChild: Padding(
-              padding: const EdgeInsets.only(left: 21, top: 6),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  for (final step in steps)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 5),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Container(
-                            margin: const EdgeInsets.only(top: 6),
-                            width: 4,
-                            height: 4,
-                            decoration: const BoxDecoration(
-                              color: ChatUi.textMuted,
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              step,
-                              style: const TextStyle(
-                                color: ChatUi.textMuted,
-                                fontSize: 12.5,
-                                height: 1.45,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            crossFadeState: _expanded
-                ? CrossFadeState.showSecond
-                : CrossFadeState.showFirst,
+          AnimatedSize(
             duration: const Duration(milliseconds: 180),
-            sizeCurve: Curves.easeOutCubic,
+            curve: Curves.easeOutCubic,
+            alignment: Alignment.topLeft,
+            child: !_expanded
+                ? const SizedBox(width: double.infinity, height: 0)
+                : Padding(
+                    padding: const EdgeInsets.only(left: 21, top: 6),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        for (final step in steps)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 5),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Container(
+                                  margin: const EdgeInsets.only(top: 6),
+                                  width: 4,
+                                  height: 4,
+                                  decoration: const BoxDecoration(
+                                    color: ChatUi.textMuted,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    step,
+                                    style: const TextStyle(
+                                      color: ChatUi.textMuted,
+                                      fontSize: 12.5,
+                                      height: 1.45,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        if (sources.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4, right: 4),
+                            child: ChatSourcesStrip(
+                              sources: sources,
+                              initiallyExpanded: true,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
           ),
         ],
       ),

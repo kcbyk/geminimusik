@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:ai_music_hub/services/image_discovery_service.dart';
 import 'package:ai_music_hub/services/music_catalog_service.dart';
+import 'package:ai_music_hub/services/ui_image_enricher.dart';
 
 void main() {
   test('CURCUNA / Wegh: kapak + 9 parça + süreler', () async {
@@ -47,4 +48,32 @@ void main() {
     expect(images, isNotEmpty);
     expect(images.first.source, 'Deezer albüm kapağı');
   }, timeout: const Timeout(Duration(seconds: 90)));
+
+  test('Oyun karakteri: Ellie (The Last of Us Part II) görseli', () async {
+    final images = await ImageDiscoveryService.instance.discover(
+        'Ellie The Last of Us Part II', limit: 4);
+    for (final image in images) {
+      print('  - [${image.source}] ${image.title} → ${image.url}');
+    }
+    expect(images, isNotEmpty);
+  }, timeout: const Timeout(Duration(seconds: 60)));
+
+  test('card_grid: karakter kartları gerçek görsellerle dolar', () async {
+    final data = <String, dynamic>{
+      'type': 'card_grid',
+      'title': 'The Last of Us Part II karakterleri',
+      'cards': [
+        {'title': 'Ellie', 'description': 'Oynanabilir ana karakter'},
+        {'title': 'Abby', 'description': 'Oynanabilir ikinci karakter'},
+        {'title': 'Joel', 'description': 'Ellie\'nin babası figürü'},
+      ],
+    };
+    final enriched = await UiImageEnricher().fillImages(data);
+    expect(enriched, isNotNull);
+    for (final card in data['cards'] as List) {
+      print('  - ${card['title']}: ${card['image_url']}');
+      expect(card['image_url'], isNotNull);
+      expect(card['image_url'], startsWith('https://'));
+    }
+  }, timeout: const Timeout(Duration(seconds: 120)));
 }

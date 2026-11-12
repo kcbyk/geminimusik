@@ -5,6 +5,9 @@ import 'package:ai_music_hub/models/generative_ui/ui_component_model.dart';
 import 'package:ai_music_hub/services/image_discovery_service.dart';
 import 'package:ai_music_hub/services/image_intent.dart';
 import 'package:ai_music_hub/services/markdown_media.dart';
+import 'package:ai_music_hub/services/ui_image_enricher.dart';
+import 'package:ai_music_hub/widgets/chat/chat_activity.dart';
+import 'package:ai_music_hub/widgets/chat/chat_sources.dart';
 import 'package:ai_music_hub/services/music_catalog_service.dart';
 import 'package:ai_music_hub/widgets/chat/music_cards.dart';
 
@@ -446,6 +449,128 @@ void main() {
         'https://cdn.test/x.jpg',
       ]);
       expect(result, 'Kısa yanıt.\n\n![görsel](https://cdn.test/x.jpg)');
+    });
+  });
+
+  group('Kart görselleri (UiImageEnricher)', () {
+    test('card_grid kartlarına gerçek görsel ekler', () async {
+      final queries = <String>[];
+      final enricher = UiImageEnricher(resolveImage: (query) async {
+        queries.add(query);
+        return 'https://img.test/${query.split(' ').first.toLowerCase()}.jpg';
+      });
+
+      final data = <String, dynamic>{
+        'type': 'card_grid',
+        'title': 'The Last of Us Part II karakterleri',
+        'cards': [
+          {'title': 'Ellie', 'description': 'Ana karakter'},
+          {'title': 'Abby', 'description': 'İkinci karakter'},
+          {'title': 'Joel', 'image_url': 'https://img.test/joel-mevcut.jpg'},
+        ],
+      };
+
+      final enriched = await enricher.fillImages(data);
+      expect(enriched, isNotNull);
+
+      final cards = data['cards'] as List;
+      expect(cards[0]['image_url'], 'https://img.test/ellie.jpg');
+      expect(cards[1]['image_url'], 'https://img.test/abby.jpg');
+      // Var olan görsel korunur, arama yapılmaz.
+      expect(cards[2]['image_url'], 'https://img.test/joel-mevcut.jpg');
+      expect(queries, hasLength(2));
+      expect(queries.first, contains('The Last of Us Part II karakterleri'));
+    });
+
+    test('Görsel bulunamazsa blok bozulmaz', () async {
+      final enricher =
+          UiImageEnricher(resolveImage: (query) async => null);
+      final data = <String, dynamic>{
+        'type': 'card_grid',
+        'title': 'Filmler',
+        'cards': [
+          {'title': 'Bir Film'},
+        ],
+      };
+      final enriched = await enricher.fillImages(data);
+      expect(enriched, isNull);
+      expect((data['cards'] as List).first['image_url'], isNull);
+    });
+
+    test('http adresleri kabul edilmez', () async {
+      final enricher = UiImageEnricher(
+          resolveImage: (query) async => 'http://img.test/a.jpg');
+      final data = <String, dynamic>{'type': 'card', 'title': 'Kart'};
+      expect(await enricher.fillImages(data), isNull);
+    });
+
+    test('tek kart görseli türe göre doğru alana yazılır', () async {
+      final enricher = UiImageEnricher(
+          resolveImage: (query) async => 'https://img.test/x.jpg');
+
+      final card = <String, dynamic>{'type': 'card', 'title': 'Rüzgar'};
+      await enricher.fillImages(card);
+      expect(card['image'], 'https://img.test/x.jpg');
+
+      final info = <String, dynamic>{'type': 'info_card', 'title': 'İpucu'};
+      await enricher.fillImages(info);
+      expect(info['image_url'], 'https://img.test/x.jpg');
+    });
+
+    test('galeri boşsa görsellerle doldurulur', () async {
+      final enricher = UiImageEnricher(
+        resolveImage: (query) async => 'https://img.test/1.jpg',
+        resolveGallery: (query) async => [
+          'https://img.test/1.jpg',
+          'https://img.test/2.jpg',
+          'http://img.test/guvensiz.jpg',
+        ],
+      );
+      final data = <String, dynamic>{
+        'type': 'gallery',
+        'title': 'Ellie The Last of Us',
+        'images': [],
+      };
+      final enriched = await enricher.fillImages(data);
+      expect(enriched, isNotNull);
+      final images = data['images'] as List;
+      expect(images, hasLength(2));
+      expect(images.first['image_url'], 'https://img.test/1.jpg');
+    });
+
+    test('kart yoksa null döner', () async {
+      final enricher = UiImageEnricher(resolveImage: (_) async => null);
+      expect(await enricher.fillImages({'type': 'card_grid'}), isNull);
+      expect(await enricher.fillImages({'type': 'table'}), isNull);
+    });
+  });
+
+  group('Kaynaklar aktivite bölümünde', () {
+    testWidgets('Kaynaklar açılır bölümde listelenir', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: ChatActivityRow(
+              thinking: const Duration(seconds: 5),
+              sourceCount: 2,
+              searchQuery: 'the last of us part 2 karakterleri',
+              sources: const [
+                {'title': 'Ellie — Fandom', 'url': 'https://thelastofus.fandom.com/wiki/Ellie'},
+                {'title': 'The Last of Us — Vikipedi', 'url': 'https://tr.wikipedia.org/wiki/The_Last_of_Us'},
+              ],
+            ),
+          ),
+        ),
+      );
+
+      // Başlangıçta kaynak şeridi gizli.
+      expect(find.byType(ChatSourcesStrip), findsNothing);
+
+      await tester.tap(find.textContaining('web sitesi arandı').first);
+      await tester.pumpAndSettle();
+
+      expect(find.byType(ChatSourcesStrip), findsOneWidget);
+      expect(find.textContaining('thelastofus.fandom.com'), findsWidgets);
     });
   });
 }

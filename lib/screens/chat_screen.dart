@@ -9,6 +9,7 @@ import '../services/global_audio_service.dart';
 import '../services/image_discovery_service.dart';
 import '../services/image_intent.dart';
 import '../services/markdown_media.dart';
+import '../services/ui_image_enricher.dart';
 import '../services/music_catalog_service.dart';
 import '../services/web_search_service.dart';
 import '../services/speech/speech_service.dart';
@@ -17,7 +18,6 @@ import '../theme/gemini_colors.dart';
 import '../theme/chat_ui.dart';
 import '../widgets/chat/chat_activity.dart';
 import '../widgets/chat/chat_actions.dart';
-import '../widgets/chat/chat_sources.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../widgets/gemini_sparkle.dart';
 import '../services/jarvis_brain_service.dart';
@@ -58,6 +58,7 @@ class _ChatScreenState extends State<ChatScreen> {
       _scrollControllerField ??= ScrollController();
 
   final GeminiService _geminiService = GeminiService();
+  final UiImageEnricher _imageEnricher = UiImageEnricher();
 
   final List<ChatMessage> _messages = [];
   bool _isLoading = false;
@@ -395,9 +396,12 @@ class _ChatScreenState extends State<ChatScreen> {
     return null;
   }
 
-  /// `album` / `tracklist` / `artist` UI bloklarını gerçek katalog verisiyle
-  /// doldurur: albüm kapağı, her parçanın kapağı ve süresi.
-  Future<String> _enrichMusicBlocks(String content) async {
+  /// Yanıttaki UI bloklarını gerçek veriyle doldurur:
+  ///
+  /// * `album` / `tracklist` / `artist` → katalogdan kapak, süre, parça kapağı
+  /// * `card_grid` / `card` / `info_card` / `product_card` / `gallery` → gerçek
+  ///   görsel (oyun/dizi karakterleri, kişiler, ürünler…)
+  Future<String> _enrichUiBlocks(String content) async {
     final blockRegex = RegExp(
       r'```\s*(?:ui|json:ui|generative_ui)\s*\n([\s\S]*?)```',
       caseSensitive: false,
@@ -424,6 +428,8 @@ class _ChatScreenState extends State<ChatScreen> {
           enriched = await _fillMusicData(data, albumLevel: type == 'album');
         } else if (type == 'artist') {
           enriched = await _fillArtistImage(data);
+        } else {
+          enriched = await _imageEnricher.fillImages(data);
         }
       } catch (e) {
         debugPrint('Müzik bloğu zenginleştirilemedi: $e');
@@ -740,9 +746,9 @@ class _ChatScreenState extends State<ChatScreen> {
       // 3. MÜZİK KARTLARI: albüm kapağı + her parçanın kendi kapağı/süresi.
       // Model kapak uydurmak zorunda kalmıyor; katalogdan gerçeği yazıyoruz.
       try {
-        cleanContent = await _enrichMusicBlocks(cleanContent);
+        cleanContent = await _enrichUiBlocks(cleanContent);
       } catch (e) {
-        debugPrint('Müzik kartı zenginleştirme hatası: $e');
+        debugPrint('Kart zenginleştirme hatası: $e');
       }
 
       // 4. GÖRSEL İSTEĞİ: "görsellerini göster / fotoğrafları / kapak" vb.
@@ -2265,6 +2271,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     sourceCount: sourceCount,
                     searchQuery: msg.searchQuery,
                     extraSteps: msg.activitySteps ?? const [],
+                    sources: msg.sources ?? const [],
                   ),
                 GenerativeMessageView(
                   content: msg.content,
@@ -2283,8 +2290,6 @@ class _ChatScreenState extends State<ChatScreen> {
                   const SizedBox(height: 14),
                   _buildMusicTransferCard(msg),
                 ],
-                if (msg.sources != null && msg.sources!.isNotEmpty)
-                  ChatSourcesStrip(sources: msg.sources!),
                 const SizedBox(height: 4),
                 ValueListenableBuilder<bool>(
                   valueListenable: JarvisTtsService.instance.isSpeakingNotifier,

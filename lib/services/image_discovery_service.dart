@@ -59,10 +59,15 @@ class ImageDiscoveryService {
   final Map<String, List<DiscoveredImage>> _cache = {};
 
   /// [query] için görseller bulur. Sonuç her durumda (hata olsa bile) liste.
+  ///
+  /// Kaynaklar paralel çalışır: Wikipedia, Wikimedia Commons ve Pinterest
+  /// (arka uç). Pinterest oyun/dizi/film karakterleri için en isabetli kaynak
+  /// olduğundan sıralamada öne alınır.
   Future<List<DiscoveredImage>> discover(
     String query, {
     int limit = 6,
     bool musicFirst = false,
+    Duration timeout = const Duration(seconds: 12),
   }) async {
     final clean = query.trim();
     if (clean.isEmpty) return const [];
@@ -81,37 +86,125 @@ class ImageDiscoveryService {
       }
     }
 
-    // 1) Müzik sorgularında önce gerçek albüm kapakları.
-    if (musicFirst) {
-      addAll(await _albumCovers(clean));
-    }
+    final sources = await Future.wait([
+      _wikipedia(clean, timeout: timeout),
+      _pinterest(clean, timeout: timeout),
+      _commons(clean, timeout: timeout),
+      if (musicFirst) _albumCovers(clean),
+    ]);
 
-    // 2) Kişi/sanatçı fotoğrafları: Wikipedia.
-    addAll(await _wikipedia(clean));
+    // Sıra: müzik kapağı → Wikipedia → Pinterest → Commons.
+    if (musicFirst) addAll(sources[3]);
+    addAll(sources[0]);
+    addAll(sources[1]);
+    addAll(sources[2]);
 
-    // 3) Wikimedia Commons: albüm/sanatçı/etkinlik fotoğrafları.
-    if (collected.length < limit) {
-      addAll(await _commons(clean));
-    }
-
-    // 4) Genel amaçlı açık lisanslı görseller: Openverse.
-    if (collected.length < limit) {
+    // Hiç sonuç yoksa Openverse (açık lisanslı genel görseller) — yavaş
+    // olduğu için yalnızca zorunlu durumda çağrılır.
+    if (collected.isEmpty) {
       addAll(await _openverse(clean));
     }
 
-    // 5) Arka uç: Pinterest + sayfa meta görselleri (eski yol, yedek).
+    // Hâlâ boşsa eski yol (sayfa meta görselleri + Pinterest tekrar).
     if (collected.isEmpty) {
       addAll(await _backendImages(clean));
     }
 
-    if (collected.isEmpty) {
-      // Son çare: albüm kapağı aramasını müzik dışı sorgularda da dene.
-      addAll(await _albumCovers(clean));
+    // Son çare: sorguyu kelimelere bölüp tekrar dene (uzun sorgularda
+    // "deki karakterlerin görselleri" gibi fazlalıklar sonucu boşaltabiliyor).
+    if (collected.isEmpty && clean.split(RegExp(r'\s+')).length > 2) {
+      final simplified = _simplifyQuery(clean);
+      if (simplified != null && simplified.toLowerCase() != clean.toLowerCase()) {
+        addAll(await _pinterest(simplified, timeout: timeout));
+        if (collected.isEmpty) addAll(await _wikipedia(simplified, timeout: timeout));
+      }
     }
 
     final result = collected.take(limit).toList(growable: false);
     _cache[cacheKey] = result;
     return result;
+  }
+
+  /// Tek bir görsel adresi (kart/başlık görselleri için hızlı yol).
+  ///
+  /// Yalnızca en hızlı iki kaynağı (Pinterest + Wikipedia) paralel dener;
+  /// yetmezse tam zincire düşer.
+  Future<String?> discoverOne(
+    String query, {
+    Duration timeout = const Duration(seconds: 9),
+  }) async {
+    final clean = query.trim();
+    if (clean.isEmpty) return null;
+
+    final cacheKey = 'one:${clean.toLowerCase()}';
+    final cached = _cache[cacheKey];
+    if (cached != null) return cached.isEmpty ? null : cached.first.url;
+
+    final results = await Future.wait([
+      _pinterest(clean, timeout: timeout),
+      _wikipedia(clean, timeout: timeout),
+    ]);
+    for (final list in results) {
+      for (final image in list) {
+        if (!isUsableImageUrl(image.url)) continue;
+        _cache[cacheKey] = <DiscoveredImage>[image];
+        return image.url;
+      }
+    }
+
+    final images = await discover(clean, limit: 1, timeout: timeout);
+    _cache[cacheKey] = images;
+    return images.isEmpty ? null : images.first.url;
+  }
+
+  /// Uzun sorgudan çekirdek varlığı çıkarır: "X deki karakterlerin görselleri"
+  /// → "X".
+  static String? simplifyQuery(String query) => _simplifyQuery(query);
+
+  static String? _simplifyQuery(String query) {
+    var value = query;
+    const noise = [
+      'görselleri', 'görsel', 'fotoğrafları', 'fotoğraf', 'resimleri', 'resim',
+      'karakterleri', 'karakterlerin', 'karakter', 'oyunundaki', 'oyunun',
+      'dizisindeki', 'filmindeki', 'deki', 'daki', 'teki', 'taki', 'hakkında',
+      'kimdir', 'kapak', 'kapağı',
+    ];
+    for (final word in noise) {
+      value = value.replaceAll(
+        RegExp(r'\b' + RegExp.escape(word) + r'\b', caseSensitive: false),
+        ' ',
+      );
+    }
+    value = value.replaceAll(RegExp(r'\s+'), ' ').trim();
+    return value.length >= 2 ? value : null;
+  }
+
+  /// Arka uç Pinterest araması (oyun/dizi karakterleri için en isabetli).
+  Future<List<DiscoveredImage>> _pinterest(
+    String query, {
+    Duration timeout = const Duration(seconds: 10),
+  }) async {
+    try {
+      final previews = await WebSearchService.instance
+          .searchPinterestImages(query, limit: 8, timeout: timeout);
+      return [
+        for (final preview in previews)
+          if (preview.imageUrl.isNotEmpty)
+            DiscoveredImage(
+              url: preview.imageUrl,
+              thumbnailUrl:
+                  preview.thumbnailUrl.isEmpty ? null : preview.thumbnailUrl,
+              title: preview.title.isEmpty ? null : preview.title,
+              source: preview.sourceName.isEmpty
+                  ? 'Pinterest'
+                  : preview.sourceName,
+              sourceUrl: preview.sourceUrl.isEmpty ? null : preview.sourceUrl,
+            ),
+      ];
+    } catch (e) {
+      debugPrint('Pinterest görselleri alınamadı: $e');
+      return const [];
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -169,11 +262,18 @@ class ImageDiscoveryService {
     }
   }
 
-  Future<List<DiscoveredImage>> _wikipedia(String query) async {
+  Future<List<DiscoveredImage>> _wikipedia(
+    String query, {
+    Duration timeout = const Duration(seconds: 10),
+  }) async {
     for (final lang in const ['tr', 'en']) {
       try {
         final response = await _dio.get(
           'https://$lang.wikipedia.org/w/api.php',
+          options: Options(
+            receiveTimeout: timeout,
+            sendTimeout: timeout,
+          ),
           queryParameters: {
             'action': 'query',
             'format': 'json',
@@ -199,10 +299,17 @@ class ImageDiscoveryService {
   }
 
   /// Wikimedia Commons'ta dosya adı araması.
-  Future<List<DiscoveredImage>> _commons(String query) async {
+  Future<List<DiscoveredImage>> _commons(
+    String query, {
+    Duration timeout = const Duration(seconds: 10),
+  }) async {
     try {
       final response = await _dio.get(
         'https://commons.wikimedia.org/w/api.php',
+        options: Options(
+          receiveTimeout: timeout,
+          sendTimeout: timeout,
+        ),
         queryParameters: {
           'action': 'query',
           'format': 'json',

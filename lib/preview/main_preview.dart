@@ -4,7 +4,6 @@ import '../theme/chat_ui.dart';
 import '../widgets/chat/chat_actions.dart';
 import '../widgets/chat/chat_activity.dart';
 import '../widgets/chat/chat_markdown.dart';
-import '../widgets/chat/chat_sources.dart';
 import '../widgets/chat/music_cards.dart';
 
 /// Yalnızca yeni sohbet arayüzünü gösteren hafif web önizlemesi.
@@ -66,7 +65,10 @@ String _resolveImages(String markdown) => markdown
     .replaceAll('__IMG3__', _asset('curcuna.jpg'))
     .replaceAll('__IMG4__', _asset('tuzak.jpg'))
     .replaceAll('__IMG5__', _asset('maskara.jpg'))
-    .replaceAll('__IMG6__', _asset('uykudan.jpg'));
+    .replaceAll('__IMG6__', _asset('uykudan.jpg'))
+    .replaceAll('__IMG7__', _asset('ellie.jpg'))
+    .replaceAll('__IMG8__', _asset('abby.jpg'))
+    .replaceAll('__IMG9__', _asset('joel.jpg'));
 
 const List<_DemoTurn> _turns = [
   _DemoTurn(
@@ -123,6 +125,37 @@ Yeni bir görsel istemek için *"Wegh fotoğrafları"* yazman yeterli.
       {'title': 'CURCUNA — Deezer', 'url': 'https://www.deezer.com/album/915819921'},
       {'title': 'Wegh — Apple Music', 'url': 'https://music.apple.com/tr'},
       {'title': 'Wegh — Wikimedia Commons', 'url': 'https://commons.wikimedia.org'},
+    ],
+  ),
+  _DemoTurn(
+    prompt: 'The Last of Us Part II karakterlerinin görselleri',
+    thinking: Duration(seconds: 7),
+    sources: 9,
+    answer: '''
+## 🎮 The Last of Us Part II karakterleri
+
+İkinci oyunun en çok konuşulan üç karakteri ve hikâyedeki rolleri:
+
+```ui
+{
+  "type": "card_grid",
+  "title": "The Last of Us Part II karakterleri",
+  "cards": [
+    {"title": "Ellie", "description": "Oynanabilir ana karakter; intikam ve bağışlama arasında sıkışır.", "image_url": "__IMG7__", "category": "Ana karakter"},
+    {"title": "Abby", "description": "İkinci oynanabilir karakter; hikâyenin diğer yarısını taşır.", "image_url": "__IMG8__", "category": "Ana karakter"},
+    {"title": "Joel", "description": "Ellie'nin koruyucusu; geçmişi ikinci oyunun kırılma noktası.", "image_url": "__IMG9__", "category": "Yan karakter"}
+  ]
+}
+```
+
+Her kartın görseli uygulama tarafından **gerçek kaynaklardan** (Pinterest / Wikipedia)
+otomatik bulunuyor; model görsel adresi uydurmuyor.
+''',
+    sourceList: [
+      {'title': 'Ellie — The Last of Us Wiki', 'url': 'https://thelastofus.fandom.com/wiki/Ellie'},
+      {'title': 'Abby — The Last of Us Wiki', 'url': 'https://thelastofus.fandom.com/wiki/Abby_Anderson'},
+      {'title': 'The Last of Us Part II — Vikipedi', 'url': 'https://tr.wikipedia.org/wiki/The_Last_of_Us_Part_II'},
+      {'title': 'Naughty Dog — Resmî site', 'url': 'https://www.naughtydog.com'},
     ],
   ),
   _DemoTurn(
@@ -379,6 +412,7 @@ class _PreviewHomeState extends State<PreviewHome> {
                   sourceCount: turn.sources,
                   searchQuery: turn.prompt,
                   extraSteps: const ['İçerik değerlendiriliyor'],
+                  sources: turn.sourceList,
                 ),
                 ChatMarkdown(data: _resolveImages(turn.answer)),
                 if (turn.withAlbum)
@@ -428,8 +462,6 @@ class _PreviewHomeState extends State<PreviewHome> {
                     ],
                     onAction: (prompt) => _send(prompt),
                   ),
-                if (turn.sourceList.isNotEmpty)
-                  ChatSourcesStrip(sources: turn.sourceList),
                 const SizedBox(height: 4),
                 ChatMessageActions(
                   rawText: turn.answer,

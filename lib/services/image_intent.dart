@@ -47,7 +47,10 @@ final RegExp _filler =
 
 /// İyelik/ilgi ekiyle gelen "albümünün", "şarkısının" gibi sözcükler.
 final RegExp _trailingKindWord = RegExp(
-  r'\s+(?:albüm|album|şarkı|parça|sanatçı|şarkıcı|grup|klip|müzik)[a-zçğıöşü]*$',
+  r'\s+(?:albüm|album|şarkı|parça|sanatçı|şarkıcı|grup|klip|müzik|'
+  r'karakter|karakterler|karakterleri|karakterlerin|kişi|kişiler|kişilerin|'
+  r'oyun|oyunu|oyunun|oyunundaki|dizi|dizisi|dizinin|dizisindeki|film|filmi|'
+  r'filmin|filmindeki|kadro|kadrosu|kadrosunun)[a-zçğıöşü]*$',
   caseSensitive: false,
 );
 
@@ -144,6 +147,12 @@ String? cleanImageEntity(String? raw) {
     previous = value;
     value = value.replaceAll(_trailingKindWord, '').trim();
   }
+
+  // "the last of us part 2 deki karakterlerin" → "the last of us part 2"
+  value = value.replaceAll(
+    RegExp(r'\s+(?:deki|daki|teki|taki|ndeki|ndaki|ın|in)\b'),
+    ' ',
+  );
 
   // "curcunanın" → "curcuna" (gövde ünlüyle bitiyorsa)
   for (final suffix in const ['nın', 'nin', 'nun', 'nün']) {
