@@ -63,7 +63,10 @@ String _asset(String name) => Uri.base.resolve('demo/$name').toString();
 String _resolveImages(String markdown) => markdown
     .replaceAll('__IMG1__', _asset('portrait-1.png'))
     .replaceAll('__IMG2__', _asset('stage-2.png'))
-    .replaceAll('__IMG3__', _asset('cover-3.png'));
+    .replaceAll('__IMG3__', _asset('curcuna.jpg'))
+    .replaceAll('__IMG4__', _asset('tuzak.jpg'))
+    .replaceAll('__IMG5__', _asset('maskara.jpg'))
+    .replaceAll('__IMG6__', _asset('uykudan.jpg'));
 
 const List<_DemoTurn> _turns = [
   _DemoTurn(
@@ -93,6 +96,33 @@ tanınıyor. Diskografisinde 2026 çıkışlı **CURCUNA** öne çıkıyor.
       {'title': 'CURCUNA — Apple Music', 'url': 'https://music.apple.com/tr'},
       {'title': 'Wegh', 'url': 'https://open.spotify.com'},
       {'title': 'Geri Ver (Official)', 'url': 'https://youtube.com'},
+    ],
+  ),
+  _DemoTurn(
+    prompt: "Wegh'in görsellerini göster",
+    thinking: Duration(seconds: 4),
+    sources: 11,
+    answer: '''
+## 🖼️ Wegh görselleri
+
+Aşağıdaki kapaklar ve fotoğraflar gerçek katalogdan geldi (Deezer / Wikimedia).
+
+![CURCUNA kapağı](__IMG3__)
+![TUZAK kapağı](__IMG4__)
+![Maskara kapağı](__IMG5__)
+![Uykudan Önce kapağı](__IMG6__)
+
+- **CURCUNA** (2026) — 9 parça
+- **TUZAK** — sert trap prodüksiyonu
+- **Maskara** — en çok dinlenen tekli
+- **Uykudan Önce** — daha sakin bir atmosfer
+
+Yeni bir görsel istemek için *"Wegh fotoğrafları"* yazman yeterli.
+''',
+    sourceList: [
+      {'title': 'CURCUNA — Deezer', 'url': 'https://www.deezer.com/album/915819921'},
+      {'title': 'Wegh — Apple Music', 'url': 'https://music.apple.com/tr'},
+      {'title': 'Wegh — Wikimedia Commons', 'url': 'https://commons.wikimedia.org'},
     ],
   ),
   _DemoTurn(
@@ -356,14 +386,45 @@ class _PreviewHomeState extends State<PreviewHome> {
                     title: 'CURCUNA',
                     artist: 'Wegh',
                     year: '2026',
-                    coverUrl: _asset('cover-3.png'),
-                    tracks: const [
-                      AlbumTrack(title: 'Intro', duration: '1:12'),
-                      AlbumTrack(title: 'Tütün ve Votka', duration: '2:47'),
-                      AlbumTrack(title: 'Geri Ver', duration: '2:58'),
-                      AlbumTrack(title: 'Radikal Eşkıya', duration: '3:04'),
-                      AlbumTrack(title: 'Baliber', duration: '2:31'),
-                      AlbumTrack(title: 'Halef Selef', duration: '3:12'),
+                    coverUrl: _asset('curcuna.jpg'),
+                    tracks: [
+                      AlbumTrack(
+                        title: 'Intro',
+                        duration: '1:36',
+                        artworkUrl: _asset('curcuna.jpg'),
+                      ),
+                      AlbumTrack(
+                        title: 'Tütün ve Votka',
+                        duration: '1:44',
+                        artworkUrl: _asset('tuzak.jpg'),
+                      ),
+                      AlbumTrack(
+                        title: 'Geri Ver',
+                        duration: '2:49',
+                        artworkUrl: _asset('curcuna.jpg'),
+                      ),
+                      AlbumTrack(
+                        title: 'Radikal Eşkiya',
+                        duration: '3:39',
+                        artworkUrl: _asset('maskara.jpg'),
+                      ),
+                      AlbumTrack(
+                        title: 'Balbiber',
+                        duration: '2:01',
+                        artworkUrl: _asset('uykudan.jpg'),
+                      ),
+                      AlbumTrack(
+                        title: 'Daha Çok Var',
+                        duration: '2:43',
+                        artworkUrl: _asset('curcuna.jpg'),
+                      ),
+                      AlbumTrack(
+                        title: 'Halef Selef',
+                        duration: '1:56',
+                        artworkUrl: _asset('tuzak.jpg'),
+                      ),
+                      AlbumTrack(title: 'ŞSS', duration: '1:28'),
+                      AlbumTrack(title: 'Outro', duration: '1:13'),
                     ],
                     onAction: (prompt) => _send(prompt),
                   ),

@@ -51,8 +51,14 @@ class UiTracklistWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final data = component.data;
     return TrackListCard(
-      title: component.title ?? component.data['playlist']?.toString(),
+      title: component.title ?? data['playlist']?.toString(),
+      coverUrl: (data['cover'] ??
+              data['cover_url'] ??
+              data['image_url'] ??
+              data['image'])
+          ?.toString(),
       tracks: tracksFromComponent(component),
       onAction: (prompt) => onAction(
         UiAction(type: 'prompt', label: prompt, value: prompt),

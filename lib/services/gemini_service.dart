@@ -255,6 +255,7 @@ DESTEKLENEN UI BİLEŞENLERİ:
     ```
 
 18. "album": Albüm kartı — kapak, sanatçı, yıl ve parça listesi birlikte gösterilir. Bir albümden bahsediyorsan parçaları bu bileşenle ver.
+    ÖNEMLİ: `cover` alanını SEN doldurma; uygulama albüm kapağını gerçek müzik kataloğundan ekliyor. Sen `title` (albüm adı) ve `subtitle` (sanatçı) alanlarını doğru yaz, parça adlarını bildiğin kadarıyla `tracks` içine koy. Süre (`duration`) ve parça kapağı (`artwork`) da uygulama tarafından eklenir; bilmiyorsan boş bırak.
     Format:
     ```ui
     {
@@ -269,7 +270,7 @@ DESTEKLENEN UI BİLEŞENLERİ:
       ]
     }
     ```
-19. "tracklist": Albüm kapağı olmadan yalnızca parça listesi (çalma listesi, "en iyi şarkılar" vb.).
+19. "tracklist": Albüm kapağı olmadan yalnızca parça listesi (çalma listesi, "en iyi şarkılar" vb.). Parça satırlarındaki kapak ve süre uygulama tarafından katalogdan eklenir; `artwork`/`duration` uydurma, gerekirse boş bırak. Liste bir albüme aitse `"album": "Albüm Adı"` alanını da ekle.
     Format:
     ```ui
     {
@@ -293,6 +294,7 @@ DESTEKLENEN UI BİLEŞENLERİ:
     }
     ```
 - "album", "tracklist" ve "artist" bileşenlerindeki parça/görsel bilgileri yalnızca doğrulanmış kaynaklardan gelmeli; bilinmeyen alanı boş bırak.
+- GÖRSELLER: Kullanıcı "görsellerini/fotoğraflarını göster", "kapak", "resim" gibi bir istek yaptığında markdown içine görsel URL'si yazma veya uydurma; uygulama gerçek görselleri (albüm kapağı, Wikipedia fotoğrafı, açık lisanslı görsel) kendisi bulup yanıtın içine yerleştiriyor. Sen sadece konuyu kısa bir başlıkla aç ve görselleri kısaca yorumla.
 
 YAPILANDIRILMIŞ FORMAT (nadir, opsiyonel):
 Yanıtını aşağıdaki yapılandırılmış JSON formatında da verebilirsin:

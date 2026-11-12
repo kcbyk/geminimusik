@@ -6,6 +6,10 @@ import 'package:image_picker/image_picker.dart';
 import '../models/chat_message.dart';
 import '../services/gemini_service.dart';
 import '../services/global_audio_service.dart';
+import '../services/image_discovery_service.dart';
+import '../services/image_intent.dart';
+import '../services/markdown_media.dart';
+import '../services/music_catalog_service.dart';
 import '../services/web_search_service.dart';
 import '../services/speech/speech_service.dart';
 import '../services/chat_history_service.dart';
@@ -391,20 +395,223 @@ class _ChatScreenState extends State<ChatScreen> {
     return null;
   }
 
-  String? _imageSearchQuery(String text) {
-    final match = RegExp(
-            r'(.+?)(?:\s+(?:fotoğraflarını|fotoğrafları|görsellerini|görselleri|resimlerini|resimleri)\s+(?:göster|bul)|\s+(?:fotoğraf|görsel|resim)\s+bul)',
-            caseSensitive: false)
-        .firstMatch(text.trim());
-    if (match != null) return match.group(1)?.trim();
-    final personMatch = RegExp(
-      r'^(.+?)\s+(?:kimdir|kimdi|hakkında bilgi ver)$',
+  /// `album` / `tracklist` / `artist` UI bloklarını gerçek katalog verisiyle
+  /// doldurur: albüm kapağı, her parçanın kapağı ve süresi.
+  Future<String> _enrichMusicBlocks(String content) async {
+    final blockRegex = RegExp(
+      r'```\s*(?:ui|json:ui|generative_ui)\s*\n([\s\S]*?)```',
       caseSensitive: false,
-    ).firstMatch(text.trim());
-    final candidate = personMatch?.group(1)?.trim();
-    return candidate != null && candidate.split(RegExp(r'\s+')).length <= 5
-        ? candidate
-        : null;
+    );
+    final matches = blockRegex.allMatches(content).toList();
+    if (matches.isEmpty) return content;
+
+    var result = content;
+    // Sondan başa: konumlar bozulmasın.
+    for (final match in matches.reversed) {
+      Map<String, dynamic>? data;
+      try {
+        final decoded = jsonDecode(match.group(1) ?? '');
+        if (decoded is Map) data = Map<String, dynamic>.from(decoded);
+      } catch (_) {
+        continue;
+      }
+      if (data == null) continue;
+
+      final type = (data['type'] ?? '').toString().toLowerCase();
+      Map<String, dynamic>? enriched;
+      try {
+        if (type == 'album' || type == 'tracklist' || type == 'playlist') {
+          enriched = await _fillMusicData(data, albumLevel: type == 'album');
+        } else if (type == 'artist') {
+          enriched = await _fillArtistImage(data);
+        }
+      } catch (e) {
+        debugPrint('Müzik bloğu zenginleştirilemedi: $e');
+      }
+      if (enriched == null) continue;
+
+      final replacement =
+          '```ui\n${const JsonEncoder.withIndent('  ').convert(enriched)}\n```';
+      result = result.replaceRange(match.start, match.end, replacement);
+    }
+    return result;
+  }
+
+  Future<Map<String, dynamic>?> _fillMusicData(
+    Map<String, dynamic> data, {
+    required bool albumLevel,
+  }) async {
+    final albumTitle =
+        (data['album'] ?? data['album_title'] ?? (albumLevel ? data['title'] : null))
+            ?.toString()
+            .trim();
+    final artist = (data['artist'] ?? data['subtitle'] ?? data['sanatci'])
+        ?.toString()
+        .trim();
+
+    final rawTracks = data['tracks'] ?? data['songs'];
+    final tracks = rawTracks is List ? rawTracks : const <dynamic>[];
+
+    CatalogAlbum? album;
+    if (albumTitle != null && albumTitle.isNotEmpty) {
+      album = await MusicCatalogService.instance
+          .findAlbum(albumTitle, artist: artist);
+    }
+    // Albüm adı yoksa ilk parçadan albümü tahmin et.
+    if (album == null && tracks.isNotEmpty) {
+      final firstTitle = _trackTitle(tracks.first);
+      if (firstTitle != null) {
+        album = await MusicCatalogService.instance
+            .findAlbum(firstTitle, artist: artist);
+      }
+    }
+    if (album == null) return null;
+
+    var changed = false;
+    final cover = (data['cover'] ?? data['cover_url'] ?? data['image_url'])
+        ?.toString()
+        .trim();
+    if ((cover == null || cover.isEmpty) && album.coverUrl != null) {
+      data['cover'] = album.coverUrl;
+      changed = true;
+    }
+    if ((data['year'] == null || data['year'].toString().trim().isEmpty) &&
+        album.year != null) {
+      data['year'] = album.year;
+      changed = true;
+    }
+
+    if (tracks.isEmpty) {
+      if (album.tracks.isNotEmpty) {
+        data['tracks'] = album.tracks.map((track) => track.toJson()).toList();
+        changed = true;
+      }
+    } else {
+      final filled = <Map<String, dynamic>>[];
+      for (final track in tracks) {
+        var map = _asTrackMap(track);
+        if (map == null) {
+          filled.add({'title': track.toString()});
+          continue;
+        }
+        final title = _trackTitle(map);
+        if (title != null) {
+          final match = _matchTrack(album.tracks, title);
+          final artwork = (map['artwork'] ?? map['cover'] ?? map['image_url'])
+              ?.toString()
+              .trim();
+          if (artwork == null || artwork.isEmpty) {
+            final artworkUrl = match?.artworkUrl ?? album.coverUrl;
+            if (artworkUrl != null) {
+              map['artwork'] = artworkUrl;
+              changed = true;
+            }
+          }
+          final duration = (map['duration'] ?? map['length'])?.toString().trim();
+          if ((duration == null || duration.isEmpty) &&
+              match?.durationLabel != null) {
+            map['duration'] = match!.durationLabel;
+            changed = true;
+          }
+        }
+        filled.add(map);
+      }
+      // Albümde eşleşmeyen parçalar (çalma listesi/farklı sanatçılar) için tek
+      // tek şarkı araması yap — her satır kendi kapağını alsın.
+      final missing = <int>[];
+      for (var i = 0; i < filled.length; i++) {
+        final artwork =
+            (filled[i]['artwork'] ?? '').toString().trim();
+        if (artwork.isEmpty) missing.add(i);
+      }
+      if (missing.isNotEmpty) {
+        final lookups = missing.take(4).toList();
+        final results = await Future.wait(
+          lookups.map((index) {
+            final map = filled[index];
+            final title = _trackTitle(map);
+            if (title == null) return Future<CatalogTrack?>.value(null);
+            return MusicCatalogService.instance.findTrack(
+              title,
+              artist: (map['artist'] ?? artist)?.toString(),
+            );
+          }),
+        );
+        for (var i = 0; i < lookups.length; i++) {
+          final track = results[i];
+          if (track?.artworkUrl == null) continue;
+          filled[lookups[i]]['artwork'] = track!.artworkUrl;
+          if ((filled[lookups[i]]['duration'] ?? '').toString().trim().isEmpty &&
+              track.durationLabel != null) {
+            filled[lookups[i]]['duration'] = track.durationLabel;
+          }
+          changed = true;
+        }
+      }
+
+      if (changed) data['tracks'] = filled;
+    }
+
+    return changed ? data : null;
+  }
+
+  /// Sanatçı kartına gerçek fotoğraf ekler (Wikipedia/Apple Music).
+  Future<Map<String, dynamic>?> _fillArtistImage(
+      Map<String, dynamic> data) async {
+    final current = (data['image_url'] ?? data['image'] ?? data['avatar'])
+        ?.toString()
+        .trim();
+    if (current != null && current.isNotEmpty) return null;
+
+    final name = (data['name'] ?? data['title'])?.toString().trim();
+    if (name == null || name.isEmpty) return null;
+
+    final images = await ImageDiscoveryService.instance
+        .discover(name, limit: 3, musicFirst: true);
+    if (images.isEmpty) return null;
+    data['image_url'] = images.first.url;
+    return data;
+  }
+
+  Map<String, dynamic>? _asTrackMap(dynamic raw) {
+    if (raw is String) return {'title': raw};
+    if (raw is Map) return Map<String, dynamic>.from(raw);
+    return null;
+  }
+
+  String? _trackTitle(dynamic raw) {
+    if (raw is String) return raw.trim().isEmpty ? null : raw.trim();
+    if (raw is Map) {
+      final value =
+          (raw['title'] ?? raw['name'] ?? raw['track'])?.toString().trim();
+      return (value == null || value.isEmpty) ? null : value;
+    }
+    return null;
+  }
+
+  CatalogTrack? _matchTrack(List<CatalogTrack> tracks, String title) {
+    final wanted = _normalizeForMatch(title);
+    if (wanted.isEmpty) return null;
+    for (final track in tracks) {
+      if (_normalizeForMatch(track.title) == wanted) return track;
+    }
+    for (final track in tracks) {
+      final candidate = _normalizeForMatch(track.title);
+      if (candidate.contains(wanted) || wanted.contains(candidate)) return track;
+    }
+    return null;
+  }
+
+  String _normalizeForMatch(String value) {
+    const map = {
+      'ç': 'c', 'ğ': 'g', 'ı': 'i', 'ö': 'o', 'ş': 's', 'ü': 'u',
+    };
+    var out = value.toLowerCase();
+    map.forEach((key, replacement) => out = out.replaceAll(key, replacement));
+    return out
+        .replaceAll(RegExp(r'[^a-z0-9 ]'), '')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
   }
 
   String? _automaticWebQuery(String text) {
@@ -530,26 +737,52 @@ class _ChatScreenState extends State<ChatScreen> {
         }
       }
 
-      final imageQuery = _imageSearchQuery(promptText);
+      // 3. MÜZİK KARTLARI: albüm kapağı + her parçanın kendi kapağı/süresi.
+      // Model kapak uydurmak zorunda kalmıyor; katalogdan gerçeği yazıyoruz.
+      try {
+        cleanContent = await _enrichMusicBlocks(cleanContent);
+      } catch (e) {
+        debugPrint('Müzik kartı zenginleştirme hatası: $e');
+      }
+
+      // 4. GÖRSEL İSTEĞİ: "görsellerini göster / fotoğrafları / kapak" vb.
+      final imageQuery =
+          imageIntentQuery(promptText, content: cleanContent);
       if (imageQuery != null && imageQuery.isNotEmpty) {
         try {
-          var images =
-              await WebSearchService.instance.searchPinterestImages(imageQuery);
-          if (images.isEmpty) {
-            images =
-                await WebSearchService.instance.searchImagePreviews(imageQuery);
-          }
+          final images = await ImageDiscoveryService.instance.discover(
+            imageQuery,
+            limit: 6,
+            musicFirst: looksMusical(promptText) || looksMusical(cleanContent),
+          );
+          cleanContent = insertImagesIntoMarkdown(
+            cleanContent,
+            images.map((image) => image.url).toList(),
+          );
           if (images.isNotEmpty) {
-            final gallery =
-                images.map((image) => image.toGalleryJson()).toList();
-            cleanContent += '\n\n```ui\n${jsonEncode({
-                  'type': 'gallery',
-                  'title': '$imageQuery görselleri',
-                  'images': gallery
-                })}\n```';
+            collectedSources ??= <Map<String, String>>[];
+            final known = collectedSources
+                .map((source) => source['url'])
+                .whereType<String>()
+                .toSet();
+            for (final image in images.take(4)) {
+              final page = image.sourceUrl;
+              if (page == null ||
+                  page.isEmpty ||
+                  image.source.isEmpty ||
+                  known.contains(page)) {
+                continue;
+              }
+              known.add(page);
+              collectedSources.add({
+                'title': '${image.source} · ${image.title ?? imageQuery}',
+                'url': page,
+              });
+            }
           }
-        } catch (_) {
+        } catch (e) {
           // Metin yanıtı, görsel sağlayıcısı hata verdiğinde kaybolmaz.
+          debugPrint('Görsel arama hatası: $e');
         }
       }
 

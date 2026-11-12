@@ -165,6 +165,7 @@ class _AlbumCardState extends State<AlbumCard> {
               TrackRow(
                 index: i + 1,
                 track: widget.tracks[i],
+                fallbackArtworkUrl: widget.coverUrl,
                 onTap: () => widget.onAction?.call(
                   '${widget.tracks[i].title} - '
                   '${widget.tracks[i].artist ?? widget.artist ?? ''} şarkısını çal',
@@ -186,7 +187,24 @@ class AlbumTrack {
   final String? artist;
   final String? duration;
 
-  const AlbumTrack({required this.title, this.artist, this.duration});
+  /// Parçanın kendi kapak görseli. Albüm kartlarında boş bırakılırsa
+  /// albüm kapağı kullanılır.
+  final String? artworkUrl;
+
+  const AlbumTrack({
+    required this.title,
+    this.artist,
+    this.duration,
+    this.artworkUrl,
+  });
+
+  /// Var olan kapağı korur, yalnızca boşsa [artwork] ile doldurur.
+  AlbumTrack withArtwork(String? artwork) => AlbumTrack(
+        title: title,
+        artist: artist,
+        duration: duration,
+        artworkUrl: (artworkUrl ?? '').trim().isNotEmpty ? artworkUrl : artwork,
+      );
 }
 
 /// Tek bir parça satırı. Numaraya dokununca çalar, indirme ikonu ayrı çalışır.
@@ -196,13 +214,24 @@ class TrackRow extends StatelessWidget {
   final VoidCallback? onTap;
   final VoidCallback? onDownload;
 
+  /// Albüm kapağı; parçanın kendi kapağı yoksa bu gösterilir.
+  final String? fallbackArtworkUrl;
+
   const TrackRow({
     super.key,
     required this.index,
     required this.track,
     this.onTap,
     this.onDownload,
+    this.fallbackArtworkUrl,
   });
+
+  /// Parçanın kapağı (yoksa albüm kapağı). İkisi de yoksa hiç yer kaplamaz.
+  Widget _trackArtwork() {
+    final url = (track.artworkUrl ?? fallbackArtworkUrl ?? '').trim();
+    if (url.isEmpty) return const SizedBox.shrink();
+    return AlbumCover(url: url, size: 38, radius: 8);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -224,7 +253,9 @@ class TrackRow extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(width: 6),
+            const SizedBox(width: 4),
+            _trackArtwork(),
+            const SizedBox(width: 10),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -400,11 +431,16 @@ class TrackListCard extends StatelessWidget {
   final List<AlbumTrack> tracks;
   final void Function(String prompt)? onAction;
 
+  /// Liste başlığında gösterilen albüm kapağı (varsa) ve parça satırları için
+  /// yedek görsel.
+  final String? coverUrl;
+
   const TrackListCard({
     super.key,
     this.title,
     required this.tracks,
     this.onAction,
+    this.coverUrl,
   });
 
   @override
@@ -418,13 +454,23 @@ class TrackListCard extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           if (title != null && title!.trim().isNotEmpty) ...[
-            Text(
-              title!,
-              style: const TextStyle(
-                color: ChatUi.textPrimary,
-                fontSize: 15.5,
-                fontWeight: FontWeight.w700,
-              ),
+            Row(
+              children: [
+                if ((coverUrl ?? '').trim().isNotEmpty) ...[
+                  AlbumCover(url: coverUrl, size: 40, radius: 8),
+                  const SizedBox(width: 10),
+                ],
+                Expanded(
+                  child: Text(
+                    title!,
+                    style: const TextStyle(
+                      color: ChatUi.textPrimary,
+                      fontSize: 15.5,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 6),
           ],
@@ -432,6 +478,7 @@ class TrackListCard extends StatelessWidget {
             TrackRow(
               index: i + 1,
               track: tracks[i],
+              fallbackArtworkUrl: coverUrl,
               onTap: () => onAction?.call('${tracks[i].title} şarkısını çal'),
               onDownload: () => onAction?.call('${tracks[i].title} şarkısını indir'),
             ),
@@ -498,10 +545,17 @@ List<AlbumTrack> tracksFromComponent(UiComponent component) {
       .map((item) {
         if (item is String) return AlbumTrack(title: item);
         if (item is Map) {
+          final artwork = item['artwork'] ??
+              item['artwork_url'] ??
+              item['cover'] ??
+              item['image'];
           return AlbumTrack(
             title: (item['title'] ?? item['name'] ?? '').toString(),
             artist: (item['artist'] ?? item['subtitle'])?.toString(),
             duration: (item['duration'] ?? item['length'])?.toString(),
+            artworkUrl: artwork is Map
+                ? (artwork['url'] ?? artwork['src'])?.toString()
+                : artwork?.toString(),
           );
         }
         return null;

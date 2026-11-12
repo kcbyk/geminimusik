@@ -167,3 +167,36 @@ flutter run --dart-define=GEMINI_API_KEY=...
 # anahtarsız, demo içerikle
 flutter run --dart-define=DEMO_MODE=true
 ```
+
+---
+
+## Albüm/parça kapakları ve görsel arama (2026-11)
+
+### Sorun
+- Albüm kartlarında kapak yoktu; parça satırlarında hiç görsel yoktu.
+- "Görsellerini göster" gibi isteklerde görsel listesi boş dönüyordu
+  (`searchImagePreviews` yalnızca sayfa meta görselini arıyor, çoğu sitede
+  HTML gelmediği için sessizce boş dönüyordu).
+
+### Çözüm
+| Dosya | Görev |
+| --- | --- |
+| `lib/services/music_catalog_service.dart` | Deezer + iTunes Search API ile gerçek albüm kapağı, parça listesi, süre ve parça kapağı. Emin olamazsa `null` döner (yanlış kapak takmaz). |
+| `lib/services/image_discovery_service.dart` | Görsel keşif zinciri: Deezer/Apple kapak → Wikipedia → Wikimedia Commons → Openverse → arka uç (Pinterest + OG görsel). HTTPS + alaka filtresi. |
+| `lib/services/image_intent.dart` | Türkçe görsel isteği çözümleme ("Wegh'in fotoğraflarını göster" → `Wegh`). |
+| `lib/services/markdown_media.dart` | Görselleri yanıtın ilk paragrafının altına ChatGPT tarzı kolaj olarak yerleştirir. |
+| `lib/widgets/chat/music_cards.dart` | `AlbumTrack.artworkUrl`; parça satırında 38×38 yuvarlatılmış kapak, yoksa albüm kapağı. |
+| `lib/screens/chat_screen.dart` | `_enrichMusicBlocks`: yanıttaki `album`/`tracklist`/`artist` bloklarını katalogdan doldurur; görsel isteğinde görselleri gömer. |
+
+### Davranış
+1. Model `album` bloğu üretir → uygulama Deezer/iTunes'tan kapağı, yılı ve 9
+   parçayı (süreleriyle) yazar. Model kapak uydurmaz (prompt'ta yasak).
+2. Her parça satırı kendi kapağını gösterir; parçanın kapağı yoksa albüm
+   kapağı kullanılır, hiç görsel yoksa satır kapağı yer kaplamaz.
+3. "görsellerini göster / fotoğrafları / kapak / görsel bul: X" gibi isteklerde
+   gerçek görseller bulunur ve yanıtın içine kolaj olarak eklenir.
+
+### Test
+- `test/music_image_test.dart` — 24 test (ayrıştırma, alaka, intent, kolaj, widget).
+- `tool/live_check.dart` — canlı ağ kontrolü: `flutter test tool/live_check.dart`.
+  CURCUNA / Wegh için Deezer'dan kapak + 9 parça geldiği doğrulandı.
