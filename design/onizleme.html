@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gemini Music — Sohbet Arayüzü Önizleme</title>
+<style>
+  :root{
+    --bg:#000; --surface:#141414; --raised:#1c1c1c; --user:#262626;
+    --border:#2f2f2f; --soft:#242424;
+    --text:#ececec; --text2:#b4b4b4; --muted:#8f8f8f;
+    --accent:#6ba6ff; --green:#6bd69b;
+  }
+  *{box-sizing:border-box;-webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0}
+  body{
+    background:radial-gradient(1100px 550px at 15% -10%,#121a2a 0%,#050505 55%,#000 100%) fixed;
+    color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    padding:26px 16px 70px;
+  }
+  .wrap{max-width:1180px;margin:0 auto}
+  header.top{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end;justify-content:space-between;margin-bottom:20px}
+  .title h1{font-size:22px;margin:0 0 6px;letter-spacing:-.3px}
+  .title p{margin:0;color:var(--muted);font-size:13px;line-height:1.6;max-width:620px}
+  .tabs{display:flex;gap:8px;flex-wrap:wrap}
+  .tab{
+    background:var(--surface);border:1px solid var(--border);color:var(--text2);
+    border-radius:999px;padding:9px 15px;font-size:13px;font-weight:600;cursor:pointer;transition:.15s;
+  }
+  .tab:hover{background:var(--raised);color:#fff}
+  .tab.on{background:var(--accent);border-color:var(--accent);color:#04101f}
+
+  .grid{display:grid;grid-template-columns:412px 1fr;gap:34px;align-items:start}
+  @media(max-width:940px){.grid{grid-template-columns:1fr}}
+
+  /* ---------- telefon ---------- */
+  .phone{
+    width:412px;max-width:100%;background:#050505;border:1px solid #202020;border-radius:40px;
+    padding:11px;box-shadow:0 30px 90px rgba(0,0,0,.75),0 0 0 1px rgba(255,255,255,.03) inset;
+    position:sticky;top:24px;
+  }
+  @media(max-width:940px){.phone{position:static}}
+  .screen{background:var(--bg);border-radius:30px;overflow:hidden;padding:10px 13px 8px;display:flex;flex-direction:column;height:792px}
+  .status{display:flex;justify-content:space-between;color:#bdbdbd;font-size:10.5px;padding:4px 8px 10px;letter-spacing:.4px}
+  .topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;padding:0 2px}
+  .round{width:34px;height:34px;border-radius:50%;background:var(--surface);border:1px solid var(--soft);display:grid;place-items:center;color:#d0d0d0;font-size:14px;cursor:pointer}
+  .round:hover{background:var(--raised)}
+
+  .scroll{flex:1;overflow-y:auto;padding-right:2px;scrollbar-width:thin;scrollbar-color:#2a2a2a transparent}
+  .scroll::-webkit-scrollbar{width:6px}
+  .scroll::-webkit-scrollbar-thumb{background:#242424;border-radius:99px}
+
+  /* ---------- baloncuk / mesaj ---------- */
+  .user-row{display:flex;justify-content:flex-end;margin:2px 0 16px}
+  .bubble{background:var(--user);border-radius:20px;padding:11px 15px;font-size:15.5px;line-height:1.5;max-width:82%}
+  .assistant{display:flex;gap:10px}
+  .spark{width:18px;height:18px;flex:0 0 18px;margin-top:4px}
+  .content{flex:1;min-width:0}
+
+  .activity{display:inline-flex;align-items:center;gap:7px;color:var(--muted);font-size:13px;cursor:pointer;
+    padding:3px 4px 3px 0;border-radius:8px;user-select:none}
+  .activity:hover{color:#c9c9c9}
+  .activity .chev{font-size:10px;transition:transform .2s}
+  .activity.open .chev{transform:rotate(180deg)}
+  .steps{margin:6px 0 0 21px;padding:0;list-style:none;display:none}
+  .steps.open{display:block}
+  .steps li{color:var(--muted);font-size:12.5px;line-height:1.5;margin-bottom:5px;display:flex;gap:8px}
+  .steps li::before{content:"";width:4px;height:4px;border-radius:50%;background:#5f5f5f;margin-top:7px;flex:0 0 4px}
+
+  h2.md{font-size:19.5px;margin:14px 0 9px;font-weight:700;letter-spacing:-.2px}
+  h3.md{font-size:16.5px;margin:16px 0 8px;font-weight:600}
+  p.md{font-size:16px;line-height:1.62;margin:0 0 11px}
+  a.md{color:var(--accent);text-decoration:underline;text-underline-offset:2px}
+  ul.md{margin:0 0 11px;padding-left:22px;font-size:16px;line-height:1.62}
+  ul.md li{margin-bottom:6px}
+  ul.md li::marker{color:var(--muted)}
+  ol.md{margin:0 0 11px;padding-left:24px;font-size:16px;line-height:1.62}
+  ol.md li{margin-bottom:7px}
+  ol.md li::marker{color:var(--muted);font-variant-numeric:tabular-nums}
+  blockquote{margin:0 0 12px;padding:2px 0 2px 14px;border-left:3px solid var(--border);color:var(--text2);font-size:15.5px;line-height:1.6}
+
+  /* ---------- görsel kolajı ---------- */
+  .collage{display:flex;gap:2px;height:252px;border-radius:16px;overflow:hidden;margin:6px 0 14px;cursor:zoom-in}
+  .collage.one{height:210px}
+  .collage .big{flex:5 1 0;position:relative;overflow:hidden}
+  .collage .side{flex:4 1 0;display:flex;flex-direction:column;gap:2px}
+  .collage .side>div{flex:1;position:relative;overflow:hidden}
+  .ph{position:absolute;inset:0;display:grid;place-items:center;color:rgba(255,255,255,.55);font-size:30px;
+      background:linear-gradient(155deg,#3c4054,#14161d)}
+  .ph.b{background:linear-gradient(155deg,#1d6f8b,#0d2530)}
+  .ph.c{background:linear-gradient(155deg,#b7791f,#331a0e)}
+  .ph .badge{position:absolute;left:7px;bottom:6px;font-size:9.5px;color:rgba(255,255,255,.72);
+     background:rgba(0,0,0,.55);padding:2px 6px;border-radius:6px;letter-spacing:.3px}
+
+  /* ---------- kartlar ---------- */
+  .card{background:var(--surface);border:1px solid var(--soft);border-radius:18px;padding:14px;margin:8px 0 14px}
+  .album-top{display:flex;gap:14px}
+  .cover{width:82px;height:82px;border-radius:12px;flex:0 0 82px;position:relative;overflow:hidden;
+     background:radial-gradient(circle at 50% 45%,#ff7a45 0%,#8d2412 45%,#170c0a 100%)}
+  .cover::after{content:"";position:absolute;inset:0;filter:blur(3px);
+     background:radial-gradient(circle at 42% 42%,rgba(255,225,190,.95),transparent 42%),
+                radial-gradient(circle at 68% 70%,rgba(255,120,60,.8),transparent 38%)}
+  .album-title{font-size:17px;font-weight:700;line-height:1.25}
+  .album-meta{color:var(--muted);font-size:12.5px;margin-top:5px}
+  .pills{display:flex;gap:8px;margin-top:10px}
+  .pill{display:inline-flex;align-items:center;gap:5px;border-radius:20px;padding:6px 12px;font-size:12.5px;
+    font-weight:600;cursor:pointer;border:none;transition:.15s}
+  .pill.primary{background:var(--accent);color:#04101f}
+  .pill.primary:hover{filter:brightness(1.08)}
+  .pill.ghost{background:var(--raised);color:var(--text2)}
+  .pill.ghost:hover{background:#242424;color:#fff}
+  .divider{height:1px;background:var(--soft);margin:12px 0 4px}
+  .track{display:flex;align-items:center;gap:10px;padding:9px 2px;font-size:14.5px;border-radius:9px;cursor:pointer;transition:.12s}
+  .track:hover{background:#1a1a1a}
+  .track .idx{width:22px;color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums}
+  .track .name{flex:1;font-weight:500;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .track .dur{color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums}
+  .track .dl{color:var(--muted);font-size:13px;padding:0 4px;border-radius:6px}
+  .track .dl:hover{color:var(--accent);background:#202020}
+  .tracklist{overflow:hidden;transition:max-height .25s ease,opacity .2s;max-height:420px}
+  .tracklist.hide{max-height:0;opacity:0}
+
+  /* ---------- kod ---------- */
+  .code{background:#171717;border:1px solid var(--soft);border-radius:14px;overflow:hidden;margin:10px 0 14px}
+  .code-head{display:flex;align-items:center;justify-content:space-between;padding:4px 6px 4px 14px;border-bottom:1px solid var(--soft)}
+  .code-lang{font-size:11.5px;color:var(--muted);font-weight:600;letter-spacing:.3px}
+  .copy{background:none;border:none;color:var(--muted);font-size:11.5px;font-weight:600;cursor:pointer;
+    padding:6px 9px;border-radius:8px;display:inline-flex;gap:5px;align-items:center}
+  .copy:hover{background:#222;color:#fff}
+  .copy.ok{color:var(--green)}
+  .code pre{margin:0;padding:12px 14px 14px;overflow-x:auto;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+     font-size:13px;line-height:1.55;color:#e4e4e4}
+  .code .kw{color:#c792ea}.code .str{color:#c3e88d}.code .cm{color:#6b7684}.code .fn{color:#82aaff}
+
+  /* ---------- tablo ---------- */
+  .tablewrap{overflow-x:auto;margin:10px 0 14px;border-radius:12px;border:1px solid var(--border)}
+  table{border-collapse:collapse;width:100%;font-size:14px}
+  th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--soft)}
+  th{background:#161616;font-weight:700;font-size:13.5px}
+  tr:last-child td{border-bottom:none}
+
+  /* ---------- kaynaklar ---------- */
+  .src-label{display:flex;align-items:center;gap:6px;color:var(--muted);font-size:12px;font-weight:600;margin:14px 0 8px}
+  .src-label b{color:var(--accent);cursor:pointer;font-weight:600}
+  .chips{display:flex;flex-wrap:wrap;gap:8px}
+  .chip{display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--soft);
+    border-radius:12px;padding:8px 10px;max-width:215px;cursor:pointer;transition:.12s}
+  .chip:hover{background:#191919;border-color:#333}
+  .fav{width:16px;height:16px;border-radius:4px;display:grid;place-items:center;font-size:9px;font-weight:800;color:#000;flex:0 0 16px}
+  .chip .c-t{font-size:12.5px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .chip .c-d{font-size:10.5px;color:var(--muted)}
+
+  /* ---------- aksiyonlar ---------- */
+  .actions{display:flex;gap:1px;margin:10px 0 2px;color:var(--muted)}
+  .act{width:31px;height:31px;border-radius:50%;display:grid;place-items:center;font-size:14px;cursor:pointer;transition:.12s;user-select:none}
+  .act:hover{background:var(--raised);color:#fff}
+  .act.on{color:var(--accent)}
+  .model{font-size:10.5px;color:#5c5c5c;margin:2px 0 18px}
+
+  /* ---------- giriş ---------- */
+  .composer{margin-top:8px;display:flex;align-items:center;gap:10px;background:var(--surface);
+    border:1px solid var(--border);border-radius:26px;padding:9px 11px;color:var(--muted);font-size:14px}
+  .plus{width:30px;height:30px;border-radius:50%;background:var(--raised);display:grid;place-items:center;color:#dcdcdc;flex:0 0 30px}
+  .send{margin-left:auto;width:30px;height:30px;border-radius:50%;background:var(--accent);display:grid;place-items:center;color:#04101f;font-weight:800;font-size:13px}
+
+  /* ---------- sağ panel ---------- */
+  .panel{display:grid;gap:16px}
+  section.box{background:rgba(18,18,18,.72);border:1px solid var(--soft);border-radius:18px;padding:17px}
+  section.box h3{margin:0 0 12px;font-size:13.5px;letter-spacing:.2px;color:#eaeaea;display:flex;align-items:center;gap:8px}
+  .badge2{font-size:10px;background:#1d2a3d;color:#8fbaff;border:1px solid #2b3d55;padding:2px 7px;border-radius:99px;font-weight:700;letter-spacing:.3px}
+  .rows{display:grid;gap:10px;font-size:13px}
+  .row{display:flex;gap:12px;align-items:flex-start;color:var(--text2);line-height:1.55}
+  .row .k{color:var(--muted);min-width:124px;font-size:12px;flex:0 0 124px}
+  code{background:#1b1b1b;border:1px solid var(--soft);border-radius:6px;padding:1px 5px;font-size:11.5px;color:#cfd8e3;
+    font-family:ui-monospace,Menlo,Consolas,monospace}
+  .swatches{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
+  .sw{border-radius:12px;padding:9px;border:1px solid rgba(255,255,255,.06);font-size:10.5px;color:#cfcfcf}
+  .sw i{display:block;height:32px;border-radius:8px;margin-bottom:7px}
+  .note{font-size:12px;color:#6b6b6b;line-height:1.7}
+  .ok{color:var(--green);font-weight:600}
+
+  /* ---------- lightbox ---------- */
+  .lightbox{position:fixed;inset:0;background:rgba(0,0,0,.96);display:none;place-items:center;z-index:50}
+  .lightbox.show{display:grid}
+  .lb-stage{width:min(92vw,760px);height:min(78vh,760px);display:grid;place-items:center;position:relative}
+  .lb-img{width:100%;height:100%;border-radius:14px;position:relative;overflow:hidden;transition:transform .2s}
+  .lb-close{position:absolute;top:14px;left:16px;width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,.1);
+    border:none;color:#fff;font-size:18px;cursor:pointer}
+  .lb-count{position:absolute;top:18px;left:50%;transform:translateX(-50%);font-size:12.5px;color:#fff;
+    background:rgba(255,255,255,.1);padding:5px 12px;border-radius:99px;border:1px solid #333}
+  .lb-nav{position:absolute;top:50%;transform:translateY(-50%);width:40px;height:40px;border-radius:50%;
+    background:rgba(255,255,255,.1);border:none;color:#fff;font-size:16px;cursor:pointer}
+  .lb-prev{left:10px}.lb-next{right:10px}
+  .toast{position:fixed;left:50%;bottom:26px;transform:translate(-50%,20px);opacity:0;transition:.25s;
+    background:#1f1f1f;border:1px solid #333;color:#eaeaea;padding:10px 16px;border-radius:12px;font-size:13px;z-index:60;pointer-events:none}
+  .toast.show{opacity:1;transform:translate(-50%,0)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="title">
+      <h1>Gemini Music — yeni sohbet arayüzü <span class="badge2">CANLI ÖNİZLEME</span></h1>
+      <p>Soldaki telefon Flutter'da çizilen ekranın birebir kopyası: aynı renk jetonları, aynı ölçüler.
+         Aşağıdaki sekmelerle farklı yanıt tiplerini deneyebilirsin — her şey tıklanabilir.</p>
+    </div>
+    <div class="tabs">
+      <button class="tab on" data-view="kisi">🎤 Kişi + görseller</button>
+      <button class="tab" data-view="album">🎧 Albüm + parçalar</button>
+      <button class="tab" data-view="kod">💻 Kod + tablo</button>
+    </div>
+  </header>
+
+  <div class="grid">
+    <!-- ================= TELEFON ================= -->
+    <div class="phone">
+      <div class="screen">
+        <div class="status"><span>17:36</span><span>◐ ⏸ ▮▮ 58</span></div>
+        <div class="topbar">
+          <div class="round">☰</div>
+          <div class="round">✎</div>
+        </div>
+
+        <div class="scroll" id="scroll">
+          <div class="user-row"><div class="bubble" id="userText">Wegh kimdir</div></div>
+
+          <div class="assistant">
+            <svg class="spark" viewBox="0 0 24 24" fill="none">
+              <defs><linearGradient id="g1" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stop-color="#4285F4"/><stop offset="0.5" stop-color="#9B72CB"/><stop offset="1" stop-color="#D96570"/>
+              </linearGradient></defs>
+              <path d="M12 2l2.2 6.1L20.5 10l-6.3 1.9L12 18l-2.2-6.1L3.5 10l6.3-1.9L12 2z" fill="url(#g1)"/>
+            </svg>
+            <div class="content" id="content"><!-- JS ile doldurulur --></div>
+          </div>
+        </div>
+
+        <div class="composer">
+          <div class="plus">+</div>
+          <span>Mesaj yaz…</span>
+          <div class="send">↑</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================= PANEL ================= -->
+    <div class="panel">
+      <section class="box">
+        <h3>Tasarım jetonları <code>lib/theme/chat_ui.dart</code></h3>
+        <div class="swatches">
+          <div class="sw"><i style="background:#000;border:1px solid #2f2f2f"></i>bg #000000</div>
+          <div class="sw"><i style="background:#141414"></i>surface #141414</div>
+          <div class="sw"><i style="background:#262626"></i>userBubble #262626</div>
+          <div class="sw"><i style="background:#ececec"></i>textPrimary #ECECEC</div>
+          <div class="sw"><i style="background:#8f8f8f"></i>textMuted #8F8F8F</div>
+          <div class="sw"><i style="background:#6ba6ff"></i>accent #6BA6FF</div>
+        </div>
+      </section>
+
+      <section class="box">
+        <h3>Bu önizlemede deneyebileceklerin</h3>
+        <div class="rows">
+          <div class="row"><span class="k">Düşünme satırı</span><span>“9s düşündü · 13 web sitesi arandı”ya dokun → adımlar açılır/kapanır.</span></div>
+          <div class="row"><span class="k">Görsel kolajı</span><span>3'lü kolaja dokun → tam ekran, ‹ › ile gezinme, “3 / 9” sayacı, ✕ ile kapatma.</span></div>
+          <div class="row"><span class="k">Albüm kartı</span><span>“Gizle” ile parça listesi kapanır; satıra dokun → “çal”, ⤓ → “indir” komutu.</span></div>
+          <div class="row"><span class="k">Kod bloğu</span><span>“Kopyala”ya bas → metin panoya gider, düğme yeşile döner.</span></div>
+          <div class="row"><span class="k">Aksiyonlar</span><span>👍 / 👎 seçimi kalıcı vurgulanır; ↻ yeniden üret, 🔊 sesli dinle.</span></div>
+          <div class="row"><span class="k">Kaynaklar</span><span>Favicon'lu çipler; “Tümü” tıklanınca genişler.</span></div>
+        </div>
+      </section>
+
+      <section class="box">
+        <h3>Tipografi ve ölçü</h3>
+        <div class="rows">
+          <div class="row"><span class="k">Gövde</span><span>16 px · satır yüksekliği 1.62 · harf aralığı 0.02</span></div>
+          <div class="row"><span class="k">Başlıklar</span><span>H1 23 · H2 19.5 · H3 17 px (w700 / w700 / w600)</span></div>
+          <div class="row"><span class="k">Aralıklar</span><span>blok 12 px · baloncuk yarıçapı 20 · kart 16–18 · kolaj 16 + 2 px boşluk</span></div>
+          <div class="row"><span class="k">Dokunma hedefi</span><span>aksiyon ikonları 31 px daire, parça satırı 38 px yükseklik</span></div>
+        </div>
+      </section>
+
+      <section class="box">
+        <h3>Doğrulama durumu</h3>
+        <div class="rows">
+          <div class="row"><span class="k">flutter analyze</span><span><span class="ok">0 hata</span> (sadece mevcut deprecation bilgileri)</span></div>
+          <div class="row"><span class="k">flutter test</span><span><span class="ok">157 test geçti</span> — 16'sı bu katman için yeni</span></div>
+          <div class="row"><span class="k">Dosyalar</span><span><code>lib/widgets/chat/</code> (6 dosya) · <code>lib/theme/chat_ui.dart</code> · <code>ui_music_widgets.dart</code></span></div>
+        </div>
+        <p class="note" style="margin:12px 0 0">Bu HTML yalnızca sunum katmanını gösterir; uygulamada aynı görünüm Flutter widget'larıyla
+          (ChatMarkdown, ChatImageCollage, ChatActivityRow, ChatSourcesStrip, ChatMessageActions, AlbumCard) üretilir.</p>
+      </section>
+    </div>
+  </div>
+</div>
+
+<!-- ================= LIGHTBOX ================= -->
+<div class="lightbox" id="lightbox">
+  <div class="lb-stage">
+    <button class="lb-close" id="lbClose">✕</button>
+    <div class="lb-count" id="lbCount">1 / 3</div>
+    <button class="lb-nav lb-prev" id="lbPrev">‹</button>
+    <button class="lb-nav lb-next" id="lbNext">›</button>
+    <div class="lb-img" id="lbImg"></div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  var views = {};
+  var toastEl = document.getElementById('toast');
+  var toastTimer = null;
+  function toast(msg){
+    toastEl.textContent = msg;
+    toastEl.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function(){ toastEl.classList.remove('show'); }, 1500);
+  }
+
+  /* ---- ortak parçalar ---- */
+  function activity(seconds, sources, query){
+    var steps = ['İçerik değerlendiriliyor','Arama: ' + query, sources + ' web sitesi tarandı',
+                 'Yanıt ' + (seconds + 0.4).toFixed(1) + ' saniyede üretildi'];
+    return '' +
+    '<div class="activity" data-toggle="act">' +
+      '<span>✧</span><span>' + seconds + 's düşündü · ' + sources + ' web sitesi arandı</span>' +
+      '<span class="chev">▾</span>' +
+    '</div>' +
+    '<ul class="steps" id="actSteps">' + steps.map(function(s){ return '<li>' + s + '</li>'; }).join('') + '</ul>';
+  }
+
+  function actions(){
+    return '' +
+    '<div class="actions" id="actions">' +
+      '<span class="act" data-copy>⧉</span>' +
+      '<span class="act" data-vote="up">👍</span>' +
+      '<span class="act" data-vote="down">👎</span>' +
+      '<span class="act" data-speak>🔊</span>' +
+      '<span class="act" data-regen>↻</span>' +
+      '<span class="act" data-share>⤴</span>' +
+    '</div>' +
+    '<div class="model">Gemini 2.5 Flash</div>';
+  }
+
+  function sources(list, total){
+    var chips = list.map(function(s){
+      return '<div class="chip"><span class="fav" style="background:' + s.color + ';color:' + s.fg + '">' + s.mark + '</span>' +
+        '<span style="min-width:0"><div class="c-t">' + s.title + '</div><div class="c-d">' + s.domain + '</div></span></div>';
+    }).join('');
+    return '<div class="src-label"><span>🔗</span><span>' + total + ' kaynak</span>' +
+      (total > list.length ? '<b data-toggle="src">· Tümü</b>' : '') + '</div>' +
+      '<div class="chips">' + chips + '</div>';
+  }
+
+  function collage(items){
+    var big = items[0];
+    var side = items.slice(1,3).map(function(it){
+      return '<div><div class="ph ' + (it.cls||'') + '">' + it.icon + (it.badge ? '<span class="badge">' + it.badge + '</span>' : '') + '</div></div>';
+    }).join('');
+    return '<div class="collage" data-gallery>' +
+      '<div class="big"><div class="ph">' + big.icon + '<span class="badge">' + (big.badge||'1 / 9') + '</span></div></div>' +
+      '<div class="side">' + side + '</div></div>';
+  }
+
+  function albumCard(){
+    var tracks = [
+      ['01','Intro','1:12'], ['02','Tütün ve Votka','2:47'], ['03','Geri Ver','2:58'],
+      ['04','Radikal Eşkıya','3:04'], ['05','Baliber','2:31'], ['06','Daha Çok Var','2:44'],
+      ['07','Halef Selef','3:12']
+    ];
+    var rows = tracks.map(function(t){
+      return '<div class="track" data-play="' + t[1] + '"><span class="idx">' + t[0] + '</span>' +
+        '<span class="name">' + t[1] + '</span><span class="dur">' + t[2] + '</span>' +
+        '<span class="dl" data-download="' + t[1] + '">⤓</span></div>';
+    }).join('');
+    return '<div class="card">' +
+      '<div class="album-top"><div class="cover"></div>' +
+        '<div><div class="album-title">CURCUNA</div>' +
+        '<div class="album-meta">Wegh · 2026 · 9 parça</div>' +
+        '<div class="pills"><button class="pill primary" data-play="CURCUNA">▶ Çal</button>' +
+        '<button class="pill ghost" data-toggle="tracks">⌃ Gizle</button></div></div>' +
+      '</div>' +
+      '<div class="divider"></div>' +
+      '<div class="tracklist" id="tracklist">' + rows + '</div>' +
+    '</div>';
+  }
+
+  /* ---- görünümler ---- */
+  views.kisi = function(){
+    return activity(9, 13, 'Wegh kimdir') +
+      '<h2 class="md">🎤 Wegh kimdir?</h2>' +
+      '<p class="md"><strong>Wegh</strong>, yeni nesil Türkçe rap sahnesinin dikkat çeken isimlerinden biri. ' +
+        'Gerçek adı <strong>Arif Efe Çilli</strong>; sahne adı olarak <em>Wegh Rumi</em>\'yi de kullanıyor.</p>' +
+      collage([
+        {icon:'◍', badge:'1 / 9'},
+        {icon:'◍', cls:'b'},
+        {icon:'◍', cls:'c'}
+      ]) +
+      '<ul class="md">' +
+        '<li><strong>Gerçek adı:</strong> Arif Efe Çilli</li>' +
+        '<li><strong>Sahne adı:</strong> Wegh / Wegh Rumi</li>' +
+        '<li><strong>Doğum yılı:</strong> 2000</li>' +
+        '<li><strong>Kariyer başlangıcı:</strong> 2020–2021</li>' +
+      '</ul>' +
+      '<p class="md">Sert vokal geçişleri, değişken flow kullanımı ve karanlık beat tercihleriyle tanınıyor. ' +
+        'Diskografisinde <a class="md" href="#" data-noop>2026 çıkışlı CURCUNA</a> öne çıkıyor.</p>' +
+      sources([
+        {mark:'W', color:'#fff', fg:'#000', title:'Wegh — Vikipedi', domain:'tr.wikipedia.org'},
+        {mark:'♫', color:'#fa243c', fg:'#fff', title:'CURCUNA — Apple Music', domain:'music.apple.com'},
+        {mark:'S', color:'#1db954', fg:'#000', title:'Wegh', domain:'open.spotify.com'},
+        {mark:'▶', color:'#ff0000', fg:'#fff', title:'Geri Ver (Official)', domain:'youtube.com'}
+      ], 13) +
+      actions();
+  };
+
+  views.album = function(){
+    return activity(6, 8, 'Wegh CURCUNA albümü') +
+      '<h2 class="md">🎧 CURCUNA (2026)</h2>' +
+      '<p class="md">Wegh\'in 2026\'da yayımlanan albümü <strong>9 parçadan</strong> oluşuyor; ' +
+        'prodüksiyonda trap ve boom-bap arası bir denge var.</p>' +
+      albumCard() +
+      '<h3 class="md">Albümün öne çıkanları</h3>' +
+      '<ol class="md">' +
+        '<li><strong>Geri Ver</strong> — 2025 · tekli olarak çıktı, albümde yeniden düzenlendi</li>' +
+        '<li><strong>Tütün ve Votka</strong> — en sert vokal geçişleri</li>' +
+        '<li><strong>Halef Selef</strong> — 2026 · CURCUNA albümünde</li>' +
+      '</ol>' +
+      '<blockquote>Sert vokal geçişleri, değişken flow kullanımı ve farklı beat tercihleriyle tanınıyor.</blockquote>' +
+      sources([
+        {mark:'♫', color:'#fa243c', fg:'#fff', title:'CURCUNA — Apple Music', domain:'music.apple.com'},
+        {mark:'S', color:'#1db954', fg:'#000', title:'CURCUNA', domain:'open.spotify.com'},
+        {mark:'♪', color:'#000', fg:'#fff', title:'Wegh — TikTok Music', domain:'tiktok.com'}
+      ], 8) +
+      actions();
+  };
+
+  views.kod = function(){
+    return activity(4, 3, 'flutter markdown örneği') +
+      '<h2 class="md">💻 Flutter\'da markdown görseli</h2>' +
+      '<p class="md">Görseli gövdeye markdown sözdizimiyle koymak yeterli; art arda yazınca kolaj olur.</p>' +
+      '<div class="code">' +
+        '<div class="code-head"><span class="code-lang">dart</span>' +
+        '<button class="copy" data-copybtn>⧉ <span>Kopyala</span></button></div>' +
+        '<pre><span class="cm">// art arda gelen görseller tek kolaj olur</span>\n' +
+        '<span class="kw">final</span> markdown = <span class="str">\'\'\'</span>\n' +
+        '<span class="str">## 🎤 Wegh kimdir?</span>\n\n' +
+        '<span class="str">![Wegh](https://cdn/1.jpg)</span>\n' +
+        '<span class="str">![Wegh](https://cdn/2.jpg)</span>\n' +
+        '<span class="str">![Wegh](https://cdn/3.jpg)</span>\n' +
+        '<span class="str">\'\'\'</span>;\n\n' +
+        '<span class="kw">await</span> tester.<span class="fn">pumpWidget</span>(<span class="fn">ChatMarkdown</span>(data: markdown));</pre>' +
+      '</div>' +
+      '<h3 class="md">Kolaj kural tablosu</h3>' +
+      '<div class="tablewrap"><table>' +
+        '<tr><th>Görsel sayısı</th><th>Düzen</th></tr>' +
+        '<tr><td>1</td><td>Tam genişlik, yuvarlatılmış kare</td></tr>' +
+        '<tr><td>2</td><td>Yan yana iki eşit kare</td></tr>' +
+        '<tr><td>3</td><td>Solda büyük + sağda üst üste iki kare</td></tr>' +
+        '<tr><td>4+</td><td>2×2 ızgara, son karede “+N”</td></tr>' +
+      '</table></div>' +
+      sources([
+        {mark:'G', color:'#fff', fg:'#000', title:'flutter_markdown', domain:'pub.dev'},
+        {mark:'◈', color:'#202124', fg:'#fff', title:'Markdown rehberi', domain:'commonmark.org'}
+      ], 3) +
+      actions();
+  };
+
+  /* ---- render + etkileşim ---- */
+  var current = 'kisi';
+  var scroll = document.getElementById('scroll');
+  var contentEl = document.getElementById('content');
+  var userEl = document.getElementById('userText');
+
+  var userPrompts = {
+    kisi: 'Wegh kimdir',
+    album: 'CURCUNA albümünü tanıt',
+    kod: 'Markdown görselleri nasıl çalışıyor?'
+  };
+
+  function render(view){
+    current = view;
+    userEl.textContent = userPrompts[view];
+    contentEl.innerHTML = views[view]();
+    scroll.scrollTop = 0;
+    document.querySelectorAll('.tab').forEach(function(t){
+      t.classList.toggle('on', t.dataset.view === view);
+    });
+  }
+
+  document.querySelectorAll('.tab').forEach(function(t){
+    t.addEventListener('click', function(){ render(t.dataset.view); });
+  });
+
+  document.addEventListener('click', function(e){
+    var el = e.target.closest('[data-toggle],[data-gallery],[data-play],[data-download],[data-copy],[data-copybtn],[data-vote],[data-speak],[data-regen],[data-share],[data-noop]');
+    if(!el) return;
+
+    if(el.hasAttribute('data-noop')){ e.preventDefault(); toast('Bağlantı açılır: gerçek uygulamada tarayıcıya devredilir'); return; }
+    if(el.hasAttribute('data-gallery')){ openLightbox(); return; }
+
+    if(el.dataset.play !== undefined && el.hasAttribute('data-play')){
+      toast('Komut üretildi → “' + el.dataset.play + ' çal”'); return;
+    }
+    if(el.hasAttribute('data-download')){
+      e.stopPropagation();
+      toast('Komut üretildi → “' + el.dataset.download + ' indir”'); return;
+    }
+    if(el.hasAttribute('data-copy') || el.hasAttribute('data-copybtn')){
+      var text = 'Wegh kimdir — Gemini Music yanıtı';
+      if(navigator.clipboard && navigator.clipboard.writeText){
+        navigator.clipboard.writeText(text).catch(function(){});
+      }
+      if(el.hasAttribute('data-copybtn')){
+        el.classList.add('ok');
+        el.querySelector('span').textContent = 'Kopyalandı';
+        setTimeout(function(){ el.classList.remove('ok'); el.querySelector('span').textContent = 'Kopyala'; }, 1500);
+      } else {
+        el.classList.add('on');
+        setTimeout(function(){ el.classList.remove('on'); }, 1300);
+      }
+      toast('Panoya kopyalandı'); return;
+    }
+    if(el.hasAttribute('data-vote')){
+      var up = el.dataset.vote === 'up';
+      var upEl = el.parentNode.querySelector('[data-vote="up"]');
+      var downEl = el.parentNode.querySelector('[data-vote="down"]');
+      var isOn = el.classList.contains('on');
+      upEl.classList.remove('on'); downEl.classList.remove('on');
+      if(!isOn) el.classList.add('on');
+      toast(isOn ? 'Geri bildirim geri alındı' : (up ? 'İyi yanıt olarak işaretlendi' : 'Kötü yanıt olarak işaretlendi'));
+      return;
+    }
+    if(el.hasAttribute('data-speak')){ el.classList.toggle('on'); toast('Jarvis sesiyle okunuyor (önizleme)'); return; }
+    if(el.hasAttribute('data-regen')){ toast('Aynı istem yeniden gönderiliyor…'); return; }
+    if(el.hasAttribute('data-share')){ toast('Paylaşım sayfası açılır'); return; }
+
+    var toggle = el.getAttribute('data-toggle');
+    if(toggle === 'act'){
+      el.classList.toggle('open');
+      document.getElementById('actSteps').classList.toggle('open');
+    }
+    if(toggle === 'tracks'){
+      var tl = document.getElementById('tracklist');
+      var hidden = tl.classList.toggle('hide');
+      el.textContent = hidden ? '⌄ Parçalar' : '⌃ Gizle';
+    }
+    if(toggle === 'src'){
+      toast('13 kaynağın tamamı listelenecek');
+    }
+  });
+
+  /* ---- lightbox ---- */
+  var lb = document.getElementById('lightbox');
+  var lbImg = document.getElementById('lbImg');
+  var lbCount = document.getElementById('lbCount');
+  var shots = [
+    {cls:'', icon:'◍'}, {cls:'b', icon:'◍'}, {cls:'c', icon:'◍'},
+    {cls:'', icon:'◍'}, {cls:'b', icon:'◍'}, {cls:'c', icon:'◍'},
+    {cls:'', icon:'◍'}, {cls:'b', icon:'◍'}, {cls:'c', icon:'◍'}
+  ];
+  var idx = 0;
+  function paintLb(){
+    lbImg.className = 'ph ' + shots[idx].cls;
+    lbImg.style.cssText = 'width:100%;height:100%;border-radius:14px;position:relative;overflow:hidden;font-size:64px';
+    lbImg.innerHTML = '<div class="ph ' + shots[idx].cls + '" style="font-size:64px">' + shots[idx].icon + '</div>';
+    lbCount.textContent = (idx+1) + ' / ' + shots.length;
+  }
+  function openLightbox(){ idx = 0; paintLb(); lb.classList.add('show'); }
+  document.getElementById('lbClose').addEventListener('click', function(){ lb.classList.remove('show'); });
+  document.getElementById('lbPrev').addEventListener('click', function(){ idx = (idx + shots.length - 1) % shots.length; paintLb(); });
+  document.getElementById('lbNext').addEventListener('click', function(){ idx = (idx + 1) % shots.length; paintLb(); });
+  lb.addEventListener('click', function(e){ if(e.target === lb) lb.classList.remove('show'); });
+  document.addEventListener('keydown', function(e){
+    if(!lb.classList.contains('show')) return;
+    if(e.key === 'Escape') lb.classList.remove('show');
+    if(e.key === 'ArrowLeft'){ idx = (idx + shots.length - 1) % shots.length; paintLb(); }
+    if(e.key === 'ArrowRight'){ idx = (idx + 1) % shots.length; paintLb(); }
+  });
+
+  render('kisi');
+})();
+</script>
+</body>
+</html>

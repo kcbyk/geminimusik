@@ -157,6 +157,24 @@ class UiComponent {
       case 'suggest':
       case 'suggestion':
         return 'recommendation_card';
+      // --- Müzik bileşenleri ---
+      case 'album':
+      case 'music_album':
+      case 'album_card':
+      case 'lp':
+        return 'album';
+      case 'tracklist':
+      case 'track_list':
+      case 'song_list':
+      case 'songs':
+      case 'tracks':
+      case 'playlist':
+        return 'tracklist';
+      case 'artist':
+      case 'artist_card':
+      case 'musician':
+      case 'singer':
+        return 'artist';
       default:
         return raw;
     }

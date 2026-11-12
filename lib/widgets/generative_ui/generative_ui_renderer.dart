@@ -18,6 +18,7 @@ import 'components/ui_form_widget.dart';
 import 'components/ui_gallery_widget.dart';
 import 'components/ui_info_card_widget.dart';
 import 'components/ui_map_widget.dart';
+import 'components/ui_music_widgets.dart';
 import 'components/ui_product_card_widget.dart';
 import 'components/ui_progress_widget.dart';
 import 'components/ui_radio_group_widget.dart';
@@ -154,6 +155,22 @@ class GenerativeUiRenderer extends StatelessWidget {
       case 'service_card':
       case 'recommendation_card':
         return UiInfoCardWidget(
+          component: comp,
+          onAction: (act) => _handleAction(context, act),
+        );
+      // --- Müzik bileşenleri ---
+      case 'album':
+        return UiAlbumWidget(
+          component: comp,
+          onAction: (act) => _handleAction(context, act),
+        );
+      case 'tracklist':
+        return UiTracklistWidget(
+          component: comp,
+          onAction: (act) => _handleAction(context, act),
+        );
+      case 'artist':
+        return UiArtistWidget(
           component: comp,
           onAction: (act) => _handleAction(context, act),
         );

@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gemini Music — Yeni Sohbet Arayüzü (ChatGPT tarzı)</title>
+<style>
+  :root{
+    --bg:#000; --surface:#141414; --raised:#1c1c1c; --user:#262626;
+    --border:#2f2f2f; --border-soft:#242424;
+    --text:#ececec; --text2:#b4b4b4; --muted:#8f8f8f;
+    --accent:#6ba6ff;
+  }
+  *{box-sizing:border-box;-webkit-font-smoothing:antialiased}
+  body{
+    margin:0;background:radial-gradient(1200px 600px at 20% -10%,#111827 0%,#000 55%) fixed;
+    color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    padding:32px 16px 64px;
+  }
+  .head{max-width:1120px;margin:0 auto 26px}
+  .head h1{font-size:24px;margin:0 0 8px;letter-spacing:-.3px}
+  .head p{margin:0;color:var(--muted);font-size:14px;line-height:1.6;max-width:760px}
+  .layout{max-width:1120px;margin:0 auto;display:grid;grid-template-columns:400px 1fr;gap:34px;align-items:start}
+  @media (max-width:900px){.layout{grid-template-columns:1fr}}
+
+  /* ---------- telefon ---------- */
+  .phone{
+    width:400px;max-width:100%;background:#000;border:1px solid #1f1f1f;border-radius:38px;
+    padding:12px;box-shadow:0 30px 80px rgba(0,0,0,.7),0 0 0 1px rgba(255,255,255,.03) inset;
+  }
+  .screen{background:var(--bg);border-radius:28px;overflow:hidden;padding:14px 14px 10px}
+  .status{display:flex;justify-content:space-between;color:#c9c9c9;font-size:11px;padding:2px 6px 12px}
+  .topbar{display:flex;align-items:center;justify-content:space-between;color:#dcdcdc;margin-bottom:14px}
+  .icon-btn{width:34px;height:34px;border-radius:50%;background:var(--surface);display:grid;place-items:center;border:1px solid var(--border-soft)}
+  .icon-btn span{font-size:15px;color:#d0d0d0}
+
+  /* ---------- mesajlar ---------- */
+  .user-row{display:flex;justify-content:flex-end;margin:4px 0 18px}
+  .bubble{
+    background:var(--user);border-radius:20px;padding:11px 15px;font-size:15.5px;line-height:1.5;max-width:80%;
+  }
+  .assistant{display:flex;gap:10px}
+  .spark{width:18px;height:18px;flex:0 0 18px;margin-top:3px}
+  .content{flex:1;min-width:0}
+
+  .activity{display:flex;align-items:center;gap:7px;color:var(--muted);font-size:13px;margin-bottom:4px}
+  .activity .chev{font-size:11px;transform:translateY(-1px)}
+  .steps{margin:6px 0 12px 25px;padding:0;list-style:none}
+  .steps li{color:var(--muted);font-size:12.5px;line-height:1.5;margin-bottom:5px;display:flex;gap:8px}
+  .steps li::before{content:"";width:4px;height:4px;border-radius:50%;background:var(--muted);margin-top:8px;flex:0 0 4px}
+
+  h2.md{font-size:19.5px;margin:2px 0 10px;letter-spacing:-.1px;font-weight:700}
+  p.md{font-size:16px;line-height:1.62;margin:0 0 12px;color:var(--text)}
+  .avatar-line{font-weight:400}
+  strong{font-weight:700}
+
+  /* ---------- görsel kolajı ---------- */
+  .collage{display:flex;gap:2px;height:250px;border-radius:16px;overflow:hidden;margin:2px 0 14px}
+  .collage .big{flex:5 1 0;position:relative;overflow:hidden}
+  .collage .side{flex:4 1 0;display:flex;flex-direction:column;gap:2px}
+  .collage .side div{flex:1;position:relative;overflow:hidden}
+  .ph{position:absolute;inset:0;display:grid;place-items:center;color:rgba(255,255,255,.72);font-size:34px;
+      background:linear-gradient(150deg,#3b3f52,#15161c)}
+  .ph.b{background:linear-gradient(150deg,#1f6f8b,#123)}
+  .ph.c{background:linear-gradient(150deg,#b7791f,#3a1d10)}
+  .ph .n{position:absolute;right:6px;bottom:5px;font-size:10px;color:rgba(255,255,255,.6);letter-spacing:.4px}
+
+  ul.md{margin:0 0 12px;padding-left:22px;font-size:16px;line-height:1.62}
+  ul.md li{margin-bottom:6px}
+  ul.md li::marker{color:var(--muted)}
+
+  /* ---------- albüm kartı ---------- */
+  .card{background:var(--surface);border:1px solid var(--border-soft);border-radius:18px;padding:14px;margin:4px 0 14px}
+  .album-top{display:flex;gap:14px}
+  .cover{
+    width:82px;height:82px;border-radius:12px;flex:0 0 82px;position:relative;overflow:hidden;
+    background:radial-gradient(circle at 50% 40%,#ff6b3d 0%,#7a1f10 45%,#1a0f0d 100%);
+  }
+  .cover::after{content:"";position:absolute;inset:0;background:
+      radial-gradient(circle at 45% 45%,rgba(255,220,180,.9),transparent 45%),
+      radial-gradient(circle at 70% 70%,rgba(255,120,60,.75),transparent 40%);filter:blur(2px)}
+  .album-title{font-size:17px;font-weight:700;line-height:1.25}
+  .album-meta{color:var(--muted);font-size:12.5px;margin-top:5px}
+  .pills{display:flex;gap:8px;margin-top:10px}
+  .pill{display:inline-flex;align-items:center;gap:4px;border-radius:20px;padding:6px 12px;font-size:12.5px;font-weight:600}
+  .pill.primary{background:var(--accent);color:#000}
+  .pill.ghost{background:var(--raised);color:var(--text2)}
+  .divider{height:1px;background:var(--border-soft);margin:12px 0 6px}
+  .track{display:flex;align-items:center;gap:10px;padding:9px 2px;font-size:14.5px}
+  .track .idx{width:22px;color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums}
+  .track .name{flex:1;font-weight:500}
+  .track .dur{color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums}
+  .track.hit .name{color:#fff}
+  .track .dl{color:var(--muted);font-size:13px}
+
+  /* ---------- kaynaklar ---------- */
+  .src-label{display:flex;align-items:center;gap:6px;color:var(--muted);font-size:12px;font-weight:600;margin:14px 0 8px}
+  .chips{display:flex;flex-wrap:wrap;gap:8px}
+  .chip{
+    display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--border-soft);
+    border-radius:12px;padding:8px 10px;max-width:220px;
+  }
+  .fav{width:16px;height:16px;border-radius:4px;display:grid;place-items:center;font-size:9px;font-weight:700;color:#000;flex:0 0 16px}
+  .chip .t{font-size:12.5px;font-weight:500;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .chip .d{font-size:10.5px;color:var(--muted)}
+
+  /* ---------- aksiyon satırı ---------- */
+  .actions{display:flex;gap:2px;margin:10px 0 4px;color:var(--muted)}
+  .act{width:31px;height:31px;border-radius:50%;display:grid;place-items:center;font-size:14px}
+  .act:hover{background:var(--raised)}
+  .model{font-size:10.5px;color:#5f5f5f;margin-top:2px}
+
+  /* ---------- giriş alanı ---------- */
+  .composer{
+    margin-top:16px;display:flex;align-items:center;gap:10px;background:var(--surface);
+    border:1px solid var(--border);border-radius:26px;padding:10px 12px;color:var(--muted);font-size:14px;
+  }
+  .plus{width:30px;height:30px;border-radius:50%;background:var(--raised);display:grid;place-items:center;color:#dcdcdc}
+  .send{margin-left:auto;width:30px;height:30px;border-radius:50%;background:var(--accent);display:grid;place-items:center;color:#000;font-size:13px;font-weight:700}
+
+  /* ---------- yan panel ---------- */
+  .panel{display:grid;gap:18px}
+  .panel section{background:rgba(20,20,20,.72);border:1px solid var(--border-soft);border-radius:18px;padding:18px}
+  .panel h3{margin:0 0 12px;font-size:14px;letter-spacing:.2px;color:#e8e8e8}
+  .panel p{margin:0 0 10px;font-size:13px;color:var(--muted);line-height:1.65}
+  .swatches{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  .sw{border-radius:12px;padding:10px;border:1px solid rgba(255,255,255,.06);font-size:11px;color:#cfcfcf}
+  .sw i{display:block;height:34px;border-radius:8px;margin-bottom:8px}
+  .rows{display:grid;gap:9px;font-size:13px}
+  .row{display:flex;gap:10px;align-items:flex-start;color:var(--text2)}
+  .row .k{color:var(--muted);min-width:112px;font-size:12px}
+  code{background:#1b1b1b;border:1px solid var(--border-soft);border-radius:6px;padding:1px 5px;font-size:12px;color:#cfd8e3}
+  .foot{max-width:1120px;margin:34px auto 0;color:#5f5f5f;font-size:12px;line-height:1.7}
+</style>
+</head>
+<body>
+  <div class="head">
+    <h1>Gemini Music — yeni sohbet arayüzü</h1>
+    <p>ChatGPT'nin markdown + görsel + kart dilini Gemini Music'e taşıyan katmanın birebir önizlemesi.
+       Gerçek uygulamada bu ekran <code>lib/widgets/chat/</code> altındaki Flutter bileşenleriyle çizilir;
+       aşağıdaki görseller ağ bağlantısı gerektirmeyen yer tutuculardır.</p>
+  </div>
+
+  <div class="layout">
+    <!-- ============ TELEFON ============ -->
+    <div class="phone">
+      <div class="screen">
+        <div class="status"><span>17:36</span><span>◐ ⏸ 58</span></div>
+        <div class="topbar">
+          <div class="icon-btn"><span>☰</span></div>
+          <div class="icon-btn"><span>✎</span></div>
+        </div>
+
+        <div class="user-row">
+          <div class="bubble">Wegh kimdir</div>
+        </div>
+
+        <div class="assistant">
+          <svg class="spark" viewBox="0 0 24 24" fill="none">
+            <defs>
+              <linearGradient id="g1" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stop-color="#4285F4"/><stop offset="0.5" stop-color="#9B72CB"/><stop offset="1" stop-color="#D96570"/>
+              </linearGradient>
+            </defs>
+            <path d="M12 2l2.2 6.1L20.5 10l-6.3 1.9L12 18l-2.2-6.1L3.5 10l6.3-1.9L12 2z" fill="url(#g1)"/>
+          </svg>
+          <div class="content">
+            <div class="activity"><span>✧</span><span>9s düşündü · 13 web sitesi arandı</span><span class="chev">▾</span></div>
+            <ul class="steps">
+              <li>İçerik değerlendiriliyor</li>
+              <li>Arama: Wegh kimdir</li>
+              <li>13 web sitesi tarandı</li>
+            </ul>
+
+            <h2 class="md">🎤 Wegh kimdir?</h2>
+            <p class="md"><strong>Wegh</strong>, yeni nesil Türkçe rap sahnesinin dikkat çeken isimlerinden biri.
+               Gerçek adı <strong>Arif Efe Çilli</strong>; sahne adı olarak <em>Wegh Rumi</em>'yi de kullanıyor.</p>
+
+            <div class="collage">
+              <div class="big"><div class="ph">◍<span class="n">1/9</span></div></div>
+              <div class="side">
+                <div><div class="ph b">◍</div></div>
+                <div><div class="ph c">◍</div></div>
+              </div>
+            </div>
+
+            <ul class="md">
+              <li><strong>Gerçek adı:</strong> Arif Efe Çilli</li>
+              <li><strong>Sahne adı:</strong> Wegh / Wegh Rumi</li>
+              <li><strong>Doğum yılı:</strong> 2000</li>
+            </ul>
+
+            <div class="card">
+              <div class="album-top">
+                <div class="cover"></div>
+                <div>
+                  <div class="album-title">CURCUNA</div>
+                  <div class="album-meta">Wegh · 2026 · 9 parça</div>
+                  <div class="pills">
+                    <span class="pill primary">▶ Çal</span>
+                    <span class="pill ghost">⌄ Gizle</span>
+                  </div>
+                </div>
+              </div>
+              <div class="divider"></div>
+              <div class="track"><span class="idx">01</span><span class="name">Intro</span><span class="dur">1:12</span><span class="dl">⤓</span></div>
+              <div class="track"><span class="idx">02</span><span class="name">Tütün ve Votka</span><span class="dur">2:47</span><span class="dl">⤓</span></div>
+              <div class="track hit"><span class="idx">03</span><span class="name">Geri Ver</span><span class="dur">2:58</span><span class="dl">⤓</span></div>
+              <div class="track"><span class="idx">04</span><span class="name">Radikal Eşkıya</span><span class="dur">3:04</span><span class="dl">⤓</span></div>
+              <div class="track"><span class="idx">05</span><span class="name">Baliber</span><span class="dur">2:31</span><span class="dl">⤓</span></div>
+            </div>
+
+            <div class="src-label"><span>🔗</span><span>13 kaynak</span></div>
+            <div class="chips">
+              <div class="chip"><span class="fav" style="background:#fff">W</span>
+                <span><div class="t">Wegh — Vikipedi</div><div class="d">tr.wikipedia.org</div></span></div>
+              <div class="chip"><span class="fav" style="background:#fa243c;color:#fff">♫</span>
+                <span><div class="t">CURCUNA — Apple Music</div><div class="d">music.apple.com</div></span></div>
+              <div class="chip"><span class="fav" style="background:#1db954">S</span>
+                <span><div class="t">Wegh</div><div class="d">open.spotify.com</div></span></div>
+              <div class="chip"><span class="fav" style="background:#ff0000;color:#fff">▶</span>
+                <span><div class="t">Geri Ver (Official)</div><div class="d">youtube.com</div></span></div>
+            </div>
+
+            <div class="actions">
+              <span class="act">⧉</span><span class="act">👍</span><span class="act">👎</span>
+              <span class="act">🔊</span><span class="act">↻</span><span class="act">⤴</span>
+            </div>
+            <div class="model">Gemini 2.5 Flash</div>
+          </div>
+        </div>
+
+        <div class="composer">
+          <span class="plus">+</span>
+          <span>Mesaj yaz…</span>
+          <span class="send">↑</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ PANEL ============ -->
+    <div class="panel">
+      <section>
+        <h3>Renk jetonları — <code>lib/theme/chat_ui.dart</code></h3>
+        <div class="swatches">
+          <div class="sw"><i style="background:#000;border:1px solid #2f2f2f"></i>bg #000000</div>
+          <div class="sw"><i style="background:#141414"></i>surface #141414</div>
+          <div class="sw"><i style="background:#262626"></i>userBubble #262626</div>
+          <div class="sw"><i style="background:#ececec"></i>textPrimary #ECECEC</div>
+          <div class="sw"><i style="background:#8f8f8f"></i>textMuted #8F8F8F</div>
+          <div class="sw"><i style="background:#6ba6ff"></i>accent #6BA6FF</div>
+        </div>
+      </section>
+
+      <section>
+        <h3>Tipografi ve ölçü</h3>
+        <div class="rows">
+          <div class="row"><span class="k">Gövde</span><span>16 px · satır yüksekliği 1.62 · harf aralığı 0.02</span></div>
+          <div class="row"><span class="k">H1 / H2 / H3</span><span>23 / 19.5 / 17 px · w700 · w700 · w600</span></div>
+          <div class="row"><span class="k">Blok aralığı</span><span>12 px</span></div>
+          <div class="row"><span class="k">Baloncuk / kart</span><span>yarıçap 20 px / 16–18 px</span></div>
+          <div class="row"><span class="k">Görsel kolajı</span><span>yarıçap 16 px · kare arası 2 px</span></div>
+        </div>
+      </section>
+
+      <section>
+        <h3>Yeni davranışlar</h3>
+        <div class="rows">
+          <div class="row"><span class="k">Markdown görsel</span><span><code>![alt](https://…jpg)</code> art arda yazılırsa tek kolaj olur; dokununca tam ekran, pinch-zoom, “3 / 9” sayacı.</span></div>
+          <div class="row"><span class="k">Kolaj düzeni</span><span>1 görsel → tam kare · 2 → yan yana · 3 → büyük sol + iki küçük sağ · 4+ → 2×2 ve “+N”.</span></div>
+          <div class="row"><span class="k">Aktivite satırı</span><span>“9s düşündü · 13 web sitesi arandı” özeti; dokununca adımlar açılır. Süre <code>thinkingMs</code> alanından gelir.</span></div>
+          <div class="row"><span class="k">Kod bloğu</span><span>Dil etiketi + tek dokunuşla kopyala; yatay kaydırma.</span></div>
+          <div class="row"><span class="k">Albüm / parça</span><span><code>“type”: “album”</code>, <code>tracklist</code>, <code>artist</code> blokları kart olarak çizilir; satıra dokun “çal”, ⤓ “indir” komutu üretir.</span></div>
+          <div class="row"><span class="k">Kaynaklar</span><span>Yanıt altında favicon'lu çipler; 4'ten fazlası “Tümü” ile açılır.</span></div>
+          <div class="row"><span class="k">Aksiyonlar</span><span>Kopyala · 👍 · 👎 · sesli dinle · yeniden üret · paylaş.</span></div>
+        </div>
+      </section>
+
+      <section>
+        <h3>Model tarafı</h3>
+        <p><code>gemini_service.dart</code> sistem istemi artık görselleri yanıt gövdesine Markdown olarak
+           yerleştirmeyi, başlıklarda tek emoji kullanmayı ve albüm/parça listelerini <code>album</code> /
+           <code>tracklist</code> / <code>artist</code> bileşenleriyle üretmeyi söylüyor. Görsel URL'si yoksa
+           görsel üretmiyor.</p>
+      </section>
+    </div>
+  </div>
+
+  <div class="foot">
+    Bu dosya yalnızca tasarım referansıdır (statik HTML). Uygulamanın kendisi Flutter'da çalışır:
+    <code>flutter test</code> ile 156 test + 16 yeni arayüz testi doğrulanmıştır.
+  </div>
+</body>
+</html>

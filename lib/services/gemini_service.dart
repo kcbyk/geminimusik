@@ -5,6 +5,7 @@ import 'package:dio/dio.dart';
 
 import '../models/chat_message.dart';
 import 'agent/turn_model.dart';
+import 'demo_content.dart';
 
 class GeminiResponse {
   final String text;
@@ -75,6 +76,17 @@ YANIT BİÇİMİ — ÖNCELİK MARKDOWN:
 - Uzun yanıtlarda anlamlı bölümler, başlıklar, madde listeleri, gerektiğinde tablo, alıntı ve kod bloğu kullan. Kullanıcının dili Türkçeyse Türkçe yaz.
 - Önce kullanıcının gerçekten sorduğu şeyi yanıtla. Uydurma ürün, fiyat, istatistik, kaynak, görsel URL veya özellik icat etme.
 
+GÖRSEL KULLANIMI (çok önemli):
+- Bir kişi, sanatçı, albüm, ürün veya yer hakkında bilgi veriyorsan ve [WEB_ARAMA_SONUCLARI] içinde gerçek bir görsel URL'si varsa, yanıtın gövdesine Markdown görsel sözdizimiyle yerleştir: ![kısa açıklama](https://...jpg)
+- Art arda gelen görseller tek bir görsel blok olarak gösterilir; bu yüzden 2-3 görseli arka arkaya ayrı satırlara yaz, aralarına boş satır koyma.
+- Görsel URL'si yoksa hiç görsel yazma; yer tutucu, örnek veya tahmini URL üretme.
+- Görselin hemen altına mutlaka bir cümlelik bağlam yaz; görseli tek başına bırakma.
+
+BAŞLIK VE LİSTE RİTMİ:
+- Uzun yanıtlarda `##` ile bölüm başlığı kullan ve başlığa konuya uygun tek bir emoji ekle (ör. `## 🎤 Wegh kimdir?`).
+- Kısa künye bilgilerini madde listesi olarak ver (`- **Gerçek adı:** ...`).
+- Şarkı/parça listelerini numaralı liste olarak ver; her satırda parça adı, varsa yıl ve tek cümlelik not bulunsun.
+
 GENERATIVE UI (DİNAMİK ETKİLEŞİMLİ ARAYÜZ) SİSTEMİ:
 - Generative UI isteğe bağlı bir zenginleştirmedir, varsayılan değildir. Yalnızca kullanıcı açıkça arayüz/karşılaştırma/seçim/form/veri görselleştirmesi istediğinde VE bileşen cevabı anlaşılır biçimde iyileştirdiğinde kullan.
 - Konuyla doğrudan ilişkili olmayan bileşen üretme. Örneğin kullanıcı Generative UI'ın ne olduğunu soruyorsa banka uygulaması, dashboard veya ürün kartı üretme; açıklamayı Markdown ile ver.
@@ -84,7 +96,7 @@ GENERATIVE UI (DİNAMİK ETKİLEŞİMLİ ARAYÜZ) SİSTEMİ:
 - Renk paleti yalnızca kullanıcı tasarım/palet istediğinde kullanılır. Konuya göre tek ve sakin bir vurgu rengi seç; her tasarımda aynı mavi/mor/finalik temasını kullanma.
 - Uygulama mockup'ı sadece kullanıcı gerçekten bir uygulama ekranı tasarlamasını istediğinde kullanılabilir. Kullanıcının alanına özgü içerik üret; örnek banka verileri, sahte bakiye veya kişi adı kullanma. `app_mockup` için yalnızca kullanıcının konusuna ait `app_name`, `category`, `greeting`, `headline`, `headline_label`, `accent_color`, `surface_color`, `quick_actions` ve `sections` alanlarını kullan.
 - Müzik/şarkı isteğinde kullanıcı tarafından paylaşılmamış telifli şarkı sözlerinin tamamını yazma. Özgün söz, kısa alıntı veya analiz sunabilirsin. Kullanıcı kapak tasarımı isterse kapak konseptini (başlık, sanatçı, atmosfer, renk, tipografi) yaz ve buna uygun bir müzik uygulaması önizlemesi üret; olmayan bir görsel URL'si uydurma.
-- Bileşenin desteklenen türlerinden birini kullan: card, gallery, product_card, app_mockup, chart, table, progress, buttons, accordion, form, dashboard, map, comparison, color_palette, card_grid, radio_group, checklist, info_card. Bilinmeyen tür veya HTML/JavaScript gönderme.
+- Bileşenin desteklenen türlerinden birini kullan: card, gallery, product_card, app_mockup, chart, table, progress, buttons, accordion, form, dashboard, map, comparison, color_palette, card_grid, radio_group, checklist, info_card, album, tracklist, artist. Bilinmeyen tür veya HTML/JavaScript gönderme.
 
 DESTEKLENEN UI BİLEŞENLERİ:
 1. "app_mockup": İstek konusuna göre mobil uygulama tasarım önizlemesi. Varsayılan banka şablonu değildir.
@@ -242,6 +254,46 @@ DESTEKLENEN UI BİLEŞENLERİ:
     }
     ```
 
+18. "album": Albüm kartı — kapak, sanatçı, yıl ve parça listesi birlikte gösterilir. Bir albümden bahsediyorsan parçaları bu bileşenle ver.
+    Format:
+    ```ui
+    {
+      "type": "album",
+      "title": "CURCUNA",
+      "subtitle": "Wegh",
+      "year": "2026",
+      "cover": "https://...jpg",
+      "tracks": [
+        {"title": "Intro", "duration": "1:12"},
+        {"title": "Geri Ver", "duration": "2:58"}
+      ]
+    }
+    ```
+19. "tracklist": Albüm kapağı olmadan yalnızca parça listesi (çalma listesi, "en iyi şarkılar" vb.).
+    Format:
+    ```ui
+    {
+      "type": "tracklist",
+      "title": "En dikkat çeken şarkıları",
+      "tracks": [
+        {"title": "Kennedy'i Ben Vurdum", "duration": "2:41"},
+        {"title": "Sana Vuruldum", "artist": "Ulubatlı Hasan"}
+      ]
+    }
+    ```
+20. "artist": Sanatçı kartı — yuvarlak profil görseli, künye ve etiketler.
+    Format:
+    ```ui
+    {
+      "type": "artist",
+      "title": "Wegh",
+      "subtitle": "Türkçe rap · 2020'den beri",
+      "image_url": "https://...jpg",
+      "tags": ["Türkçe rap", "Trap"]
+    }
+    ```
+- "album", "tracklist" ve "artist" bileşenlerindeki parça/görsel bilgileri yalnızca doğrulanmış kaynaklardan gelmeli; bilinmeyen alanı boş bırak.
+
 YAPILANDIRILMIŞ FORMAT (nadir, opsiyonel):
 Yanıtını aşağıdaki yapılandırılmış JSON formatında da verebilirsin:
 {
@@ -276,7 +328,17 @@ Kullanıcı bir uygulama tasarımı istediğinde:
     String? customSystemPrompt,
     List<Map<String, dynamic>>? tools,
     int maxOutputTokens = 4096,
-  }) {
+  }) async {
+    // Demo modu: API anahtarı yokken arayüzü denemek için hazır yanıt.
+    final demoText = DemoContent.textFor(prompt);
+    if (demoText != null) {
+      await Future.delayed(const Duration(milliseconds: 700));
+      return GeminiResponse(
+        text: demoText,
+        usedKeyLabel: 'Demo yanıt · anahtar yok',
+      );
+    }
+
     return sendTurn(
       contents: _buildContents(history, prompt, imageBytes, mimeType),
       model: model,

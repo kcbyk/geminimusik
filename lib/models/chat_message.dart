@@ -13,6 +13,12 @@ class ChatMessage {
   final Uint8List? imageBytes;
   final String? imageMimeType;
 
+  /// Yanıtın üretilmesi ne kadar sürdü? ("9s düşündü" satırı için)
+  final int? thinkingMs;
+
+  /// Modelin yanıt üretirken geçtiği ek adımlar ("İçerik değerlendiriliyor").
+  final List<String>? activitySteps;
+
   bool get isUser => _isUser == true;
   bool get isMusicCommand => _isMusicCommand == true;
   bool get isWebSearch => _isWebSearch == true;
@@ -29,6 +35,8 @@ class ChatMessage {
     this.sources,
     this.imageBytes,
     this.imageMimeType,
+    this.thinkingMs,
+    this.activitySteps,
   })  : _isUser = isUser,
         _isMusicCommand = isMusicCommand,
         _isWebSearch = isWebSearch;
@@ -43,6 +51,8 @@ class ChatMessage {
         'isWebSearch': isWebSearch,
         'searchQuery': searchQuery,
         'sources': sources,
+        'thinkingMs': thinkingMs,
+        'activitySteps': activitySteps,
       };
 
   factory ChatMessage.fromJson(Map<String, dynamic> json) => ChatMessage(
@@ -59,6 +69,10 @@ class ChatMessage {
         sources: (json['sources'] as List?)
             ?.map((e) => Map<String, String>.from(e as Map))
             .toList(),
+        thinkingMs: (json['thinkingMs'] as num?)?.toInt(),
+        activitySteps: (json['activitySteps'] as List?)
+            ?.map((e) => e.toString())
+            .toList(),
       );
 
   ChatMessage copyWith({
@@ -73,6 +87,8 @@ class ChatMessage {
     List<Map<String, String>>? sources,
     Uint8List? imageBytes,
     String? imageMimeType,
+    int? thinkingMs,
+    List<String>? activitySteps,
   }) {
     return ChatMessage(
       id: id ?? this.id,
@@ -86,6 +102,8 @@ class ChatMessage {
       sources: sources ?? this.sources,
       imageBytes: imageBytes ?? this.imageBytes,
       imageMimeType: imageMimeType ?? this.imageMimeType,
+      thinkingMs: thinkingMs ?? this.thinkingMs,
+      activitySteps: activitySteps ?? this.activitySteps,
     );
   }
 }

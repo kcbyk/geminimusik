@@ -1,380 +1,127 @@
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
-import '../../../services/image_download_service.dart';
-import '../../../models/generative_ui/ui_component_model.dart';
-import '../../../theme/gemini_colors.dart';
 
-class UiGalleryWidget extends StatefulWidget {
+import '../../../models/generative_ui/ui_component_model.dart';
+import '../../../theme/chat_ui.dart';
+import '../../chat/chat_image.dart';
+
+/// Generative UI `gallery` bileşeni.
+///
+/// ChatGPT'nin görsel davranışını izler: görseller karusel yerine tek bir
+/// kolaj hâlinde gösterilir (1 büyük, 2 yan yana, 3 büyük + iki küçük, 4+ ızgara).
+/// Herhangi bir kareye dokunmak tam ekran, kaydırılabilir ve yakınlaştırılabilir
+/// görüntüleyiciyi açar. Görsel sayısı 5'i aşarsa son karede "+N" sayacı görünür.
+class UiGalleryWidget extends StatelessWidget {
   final UiComponent component;
 
-  const UiGalleryWidget({
-    super.key,
-    required this.component,
-  });
+  const UiGalleryWidget({super.key, required this.component});
 
-  @override
-  State<UiGalleryWidget> createState() => _UiGalleryWidgetState();
-}
+  List<ChatImageRef> _images() {
+    final data = component.data;
+    final refs = <ChatImageRef>[];
 
-class _UiGalleryWidgetState extends State<UiGalleryWidget> {
-  int _currentIndex = 0;
-  final PageController _pageController = PageController();
-
-  List<Map<String, String>> _getItems() {
-    final data = widget.component.data;
-    final items = <Map<String, String>>[];
-
-    if (data['images'] is List) {
-      for (final item in data['images'] as List) {
-        if (item is Map) {
-          items.add({
-            'url': (item['thumbnail_url'] ?? item['url'] ?? item['image'] ?? '')
-                .toString(),
-            'caption': (item['caption'] ?? item['title'] ?? '').toString(),
-            'source': (item['source_name'] ?? '').toString(),
-            'source_url': (item['source_url'] ?? '').toString(),
-            'image_url':
-                (item['image_url'] ?? item['url'] ?? item['image'] ?? '')
-                    .toString(),
-            'photographer': (item['photographer'] ?? '').toString(),
-            'dimensions': _dimensions(item),
-          });
-        } else if (item is String) {
-          items.add({'url': item, 'caption': ''});
-        }
+    void addItem(dynamic item) {
+      if (item is String) {
+        if (item.trim().isEmpty) return;
+        refs.add(ChatImageRef(url: item.trim()));
+        return;
       }
-    } else if (data['items'] is List) {
-      for (final item in data['items'] as List) {
-        if (item is Map) {
-          items.add({
-            'url': (item['thumbnail_url'] ?? item['url'] ?? item['image'] ?? '')
-                .toString(),
-            'caption': (item['caption'] ?? item['title'] ?? '').toString(),
-            'source': (item['source_name'] ?? '').toString(),
-            'source_url': (item['source_url'] ?? '').toString(),
-            'image_url':
-                (item['image_url'] ?? item['url'] ?? item['image'] ?? '')
-                    .toString(),
-            'photographer': (item['photographer'] ?? '').toString(),
-            'dimensions': _dimensions(item),
-          });
-        } else if (item is String) {
-          items.add({'url': item, 'caption': ''});
-        }
+      if (item is Map) {
+        final url = (item['image_url'] ??
+                item['url'] ??
+                item['thumbnail_url'] ??
+                item['image'] ??
+                '')
+            .toString()
+            .trim();
+        if (url.isEmpty) return;
+        refs.add(
+          ChatImageRef(
+            url: url,
+            alt: (item['title'] ?? '').toString(),
+            caption: (item['caption'] ?? item['source_name'] ?? '').toString(),
+          ),
+        );
       }
     }
 
-    if (items.isEmpty && data['image'] != null) {
-      items.add({
-        'url': data['image'].toString(),
-        'caption': widget.component.title ?? '',
-      });
+    final raw = data['images'] ?? data['items'];
+    if (raw is List) {
+      for (final item in raw) {
+        addItem(item);
+      }
     }
-
-    return items;
-  }
-
-  String _dimensions(Map item) {
-    final width = item['width'];
-    final height = item['height'];
-    return width is num && height is num
-        ? '${width.toInt()} × ${height.toInt()}'
-        : '';
-  }
-
-  @override
-  void dispose() {
-    _pageController.dispose();
-    super.dispose();
+    if (refs.isEmpty && data['image'] != null) {
+      addItem(data['image']);
+    }
+    return refs;
   }
 
   @override
   Widget build(BuildContext context) {
-    final items = _getItems();
-    if (items.isEmpty) return const SizedBox.shrink();
+    final images = _images();
+    if (images.isEmpty) return const SizedBox.shrink();
 
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: 8),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1E1F20),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.08),
-          width: 1,
-        ),
-      ),
-      clipBehavior: Clip.antiAlias,
+    final title = component.title?.trim();
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          if (widget.component.title != null)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
-              child: Row(
-                children: [
-                  const Icon(Icons.collections_bookmark_outlined,
-                      size: 18, color: GeminiColors.geminiCyan),
-                  const SizedBox(width: 8),
-                  Text(
-                    widget.component.title!,
+          if (title != null && title.isNotEmpty) ...[
+            Row(
+              children: [
+                const Icon(Icons.photo_library_outlined,
+                    size: 15, color: ChatUi.textMuted),
+                const SizedBox(width: 7),
+                Expanded(
+                  child: Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
+                      color: ChatUi.textSecondary,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
-                ],
+                ),
+                if (images.length > 1)
+                  Text(
+                    '${images.length} görsel',
+                    style: ChatUi.caption,
+                  ),
+              ],
+            ),
+            const SizedBox(height: 8),
+          ],
+          ChatImageCollage(images: images),
+          if (images.length > 1) ...[
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: () => ChatImageViewer.show(
+                  context,
+                  images: images,
+                  initialIndex: 0,
+                ),
+                icon: const Icon(Icons.fullscreen_rounded,
+                    size: 16, color: ChatUi.textMuted),
+                label: Text(
+                  'Tümünü gör (${images.length})',
+                  style: const TextStyle(fontSize: 12.5, color: ChatUi.textMuted),
+                ),
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  minimumSize: const Size(0, 32),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
               ),
             ),
-          SizedBox(
-            height: 200,
-            child: PageView.builder(
-              controller: _pageController,
-              itemCount: items.length,
-              onPageChanged: (idx) => setState(() => _currentIndex = idx),
-              itemBuilder: (context, index) {
-                final item = items[index];
-                return GestureDetector(
-                  onTap: () => _openLightbox(context, items, index),
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      _buildImage(item['url'] ?? ''),
-                      if ((item['caption'] ?? '').isNotEmpty)
-                        Positioned(
-                          left: 0,
-                          right: 0,
-                          bottom: 0,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 8),
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [
-                                  Colors.transparent,
-                                  Colors.black.withValues(alpha: 0.8),
-                                ],
-                                begin: Alignment.topCenter,
-                                end: Alignment.bottomCenter,
-                              ),
-                            ),
-                            child: Text(
-                              item['caption']!,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                );
-              },
-            ),
-          ),
-          if ((items[_currentIndex]['source'] ?? '').isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(14, 10, 14, 4),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      [
-                        items[_currentIndex]['source'],
-                        items[_currentIndex]['photographer'],
-                        items[_currentIndex]['dimensions']
-                      ]
-                          .where((value) => value != null && value.isNotEmpty)
-                          .join(' · '),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                          color: Color(0xFFB8B8B8), fontSize: 11),
-                    ),
-                  ),
-                  TextButton.icon(
-                    onPressed: () =>
-                        _openSource(items[_currentIndex]['source_url']),
-                    icon: const Icon(Icons.open_in_new_rounded, size: 14),
-                    label: const Text('Kaynak'),
-                    style: TextButton.styleFrom(
-                        foregroundColor: GeminiColors.geminiCyan,
-                        textStyle: const TextStyle(fontSize: 11)),
-                  ),
-                ],
-              ),
-            ),
-          if (items.length > 1)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 10),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(items.length, (idx) {
-                  final isActive = idx == _currentIndex;
-                  return AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    margin: const EdgeInsets.symmetric(horizontal: 4),
-                    width: isActive ? 18 : 6,
-                    height: 6,
-                    decoration: BoxDecoration(
-                      color: isActive
-                          ? GeminiColors.geminiBlue
-                          : Colors.white.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(3),
-                    ),
-                  );
-                }),
-              ),
-            ),
+          ],
         ],
-      ),
-    );
-  }
-
-  Widget _buildImage(String url) {
-    if (url.startsWith('http://') || url.startsWith('https://')) {
-      return Image.network(
-        url,
-        fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => _buildPlaceholder(),
-      );
-    }
-    return _buildPlaceholder();
-  }
-
-  Future<void> _openSource(String? value) async {
-    final uri = Uri.tryParse(value ?? '');
-    if (uri != null && uri.scheme == 'https') {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    }
-  }
-
-  Widget _buildPlaceholder() {
-    return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Color(0xFF0F2027), Color(0xFF203A43), Color(0xFF2C5364)],
-        ),
-      ),
-      child: Center(
-        child: Icon(
-          Icons.photo_size_select_actual_outlined,
-          size: 44,
-          color: Colors.white.withValues(alpha: 0.4),
-        ),
-      ),
-    );
-  }
-
-  void _openLightbox(
-      BuildContext context, List<Map<String, String>> items, int initialIndex) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (ctx) {
-          int active = initialIndex;
-          var downloadArmed = false;
-          return StatefulBuilder(
-            builder: (ctx, setLightboxState) {
-              return Scaffold(
-                backgroundColor: Colors.black,
-                appBar: AppBar(
-                  backgroundColor: Colors.black,
-                  iconTheme: const IconThemeData(color: Colors.white),
-                  title: Text(
-                    '${active + 1} / ${items.length}',
-                    style: const TextStyle(color: Colors.white, fontSize: 16),
-                  ),
-                ),
-                body: Stack(
-                  children: [
-                    PageView.builder(
-                      itemCount: items.length,
-                      controller: PageController(initialPage: initialIndex),
-                      onPageChanged: (i) => setLightboxState(() => active = i),
-                      itemBuilder: (ctx, i) {
-                        final it = items[i];
-                        final imageUrl = it['image_url']?.isNotEmpty == true
-                            ? it['image_url']!
-                            : (it['url'] ?? '');
-                        return Center(
-                          child: GestureDetector(
-                            onLongPressStart: (_) =>
-                                setLightboxState(() => downloadArmed = false),
-                            onLongPressMoveUpdate: (details) {
-                              if (details.globalPosition.dy >
-                                  MediaQuery.of(ctx).size.height - 150) {
-                                setLightboxState(() => downloadArmed = true);
-                              }
-                            },
-                            onLongPressEnd: (_) {
-                              if (!downloadArmed) return;
-                              final safeTitle = (it['caption'] ?? 'gorsel')
-                                  .replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
-                              ImageDownloadService.download(
-                                url: imageUrl,
-                                fileName:
-                                    '${safeTitle.isEmpty ? 'gorsel' : safeTitle}.jpg',
-                              ).then((_) {
-                                if (ctx.mounted) {
-                                  ScaffoldMessenger.of(ctx).showSnackBar(
-                                    const SnackBar(
-                                      content: Text(
-                                          'İndirme İndirilenler klasörüne eklendi.'),
-                                    ),
-                                  );
-                                }
-                              }).catchError((_) {
-                                if (ctx.mounted) {
-                                  ScaffoldMessenger.of(ctx).showSnackBar(
-                                    const SnackBar(
-                                      content: Text('Görsel indirilemedi.'),
-                                    ),
-                                  );
-                                }
-                              });
-                              setLightboxState(() => downloadArmed = false);
-                            },
-                            child: InteractiveViewer(
-                              child: _buildImage(imageUrl),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                    if (downloadArmed)
-                      Align(
-                        alignment: Alignment.bottomCenter,
-                        child: Container(
-                          margin: const EdgeInsets.all(24),
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 18, vertical: 14),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF292929),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: GeminiColors.geminiCyan),
-                          ),
-                          child: const Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.download_rounded,
-                                  color: GeminiColors.geminiCyan),
-                              SizedBox(width: 8),
-                              Text('İndirmek için bırak',
-                                  style: TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w600)),
-                            ],
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              );
-            },
-          );
-        },
       ),
     );
   }

@@ -10,11 +10,15 @@ import '../services/web_search_service.dart';
 import '../services/speech/speech_service.dart';
 import '../services/chat_history_service.dart';
 import '../theme/gemini_colors.dart';
+import '../theme/chat_ui.dart';
+import '../widgets/chat/chat_activity.dart';
+import '../widgets/chat/chat_actions.dart';
+import '../widgets/chat/chat_sources.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../widgets/gemini_sparkle.dart';
 import '../services/jarvis_brain_service.dart';
 import '../services/jarvis_tts_service.dart';
 import '../widgets/generative_ui/generative_message_view.dart';
-import '../widgets/generative_ui/components/ui_streaming_indicator_widget.dart';
 
 class ChatScreen extends StatefulWidget {
   final Function(String songQuery)? onNavigateToMusicDownload;
@@ -66,26 +70,6 @@ class _ChatScreenState extends State<ChatScreen> {
     } catch (_) {
       return 'web';
     }
-  }
-
-  Widget _buildFavicon(String domain, double size) {
-    if (domain.isEmpty || domain == 'web') {
-      return Icon(Icons.language, size: size, color: GeminiColors.geminiBlue);
-    }
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(3),
-      child: Image.network(
-        'https://www.google.com/s2/favicons?domain=$domain&sz=32',
-        width: size,
-        height: size,
-        fit: BoxFit.contain,
-        errorBuilder: (_, __, ___) => Icon(
-          Icons.public_rounded,
-          size: size,
-          color: GeminiColors.geminiBlue,
-        ),
-      ),
-    );
   }
 
   // Aktif oturum ID'si (geçmişten yükleme veya yeni oluşturma)
@@ -439,6 +423,7 @@ class _ChatScreenState extends State<ChatScreen> {
     String? mimeType,
   }) async {
     final isMusic = _isMusicCommand(promptText);
+    final stopwatch = Stopwatch()..start();
     bool wasWebSearch = false;
     String? executedSearchQuery;
     List<Map<String, String>>? collectedSources;
@@ -578,7 +563,14 @@ class _ChatScreenState extends State<ChatScreen> {
         isWebSearch: wasWebSearch,
         searchQuery: executedSearchQuery,
         sources: collectedSources,
+        thinkingMs: stopwatch.elapsedMilliseconds,
+        activitySteps: [
+          'İçerik değerlendiriliyor',
+          if (wasWebSearch) 'Web sonuçları karşılaştırılıyor',
+          'Yanıt yazılıyor',
+        ],
       );
+      stopwatch.stop();
 
       if (mounted) {
         setState(() {
@@ -1934,94 +1926,158 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Widget _buildGeminiThinking() {
-    final hasSearchingSources =
-        _activeSearchingSources != null && _activeSearchingSources!.isNotEmpty;
+    final domains = <String>{};
+    for (final src in _activeSearchingSources ?? const <Map<String, String>>[]) {
+      final domain = _extractDomain(src['url'] ?? '');
+      if (domain.isNotEmpty && domain != 'web') domains.add(domain);
+    }
+
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12),
+      padding: const EdgeInsets.only(bottom: 22),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const GeminiSparkleIcon(size: 20),
-          const SizedBox(width: 12),
+          const Padding(
+            padding: EdgeInsets.only(top: 1),
+            child: GeminiSparkleIcon(size: 18),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: ChatThinkingRow(
+              label: domains.isEmpty ? 'Düşünüyor' : 'Web siteleri aranıyor',
+              scanningDomains: domains.take(6).toList(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Kullanıcı mesajı — ChatGPT tarzı sade, yumuşak köşeli baloncuk.
+  Widget _buildUserMessage(ChatMessage msg) {
+    return Align(
+      alignment: Alignment.centerRight,
+      child: Padding(
+        padding: const EdgeInsets.only(top: 6, bottom: 18, left: 44),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(ChatUi.bubbleRadius),
+            onLongPress: () => _showUserMessageOptions(msg),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 11),
+              decoration: BoxDecoration(
+                color: ChatUi.userBubble,
+                borderRadius: BorderRadius.circular(ChatUi.bubbleRadius),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (msg.imageBytes != null) ...[
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(
+                          maxHeight: 240,
+                          maxWidth: 280,
+                        ),
+                        child: Image.memory(msg.imageBytes!, fit: BoxFit.cover),
+                      ),
+                    ),
+                    if (msg.content.isNotEmpty) const SizedBox(height: 10),
+                  ],
+                  if (msg.content.isNotEmpty)
+                    Text(
+                      msg.content,
+                      style: const TextStyle(
+                        color: ChatUi.textPrimary,
+                        fontSize: 15.5,
+                        height: 1.5,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Asistan mesajı — aktivite satırı + markdown + kaynaklar + aksiyonlar.
+  Widget _buildAssistantMessage(ChatMessage msg) {
+    final thinking = msg.thinkingMs != null
+        ? Duration(milliseconds: msg.thinkingMs!)
+        : null;
+    final sourceCount = msg.sources?.length ?? 0;
+    final hasActivity = thinking != null || sourceCount > 0;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 26),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Padding(
+            padding: EdgeInsets.only(top: 1),
+            child: GeminiSparkleIcon(size: 18),
+          ),
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    const Text(
-                      'Gemini',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: GeminiColors.textPrimary,
-                        fontSize: 14,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Container(
-                      width: 12,
-                      height: 12,
-                      padding: const EdgeInsets.all(2),
-                      child: const CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: GeminiColors.geminiBlue,
-                      ),
-                    ),
-                  ],
+                if (hasActivity)
+                  ChatActivityRow(
+                    thinking: thinking,
+                    sourceCount: sourceCount,
+                    searchQuery: msg.searchQuery,
+                    extraSteps: msg.activitySteps ?? const [],
+                  ),
+                GenerativeMessageView(
+                  content: msg.content,
+                  onActionPrompt: (prompt) => _handleSendMessage(prompt),
+                  onActionUrl: (url) async {
+                    final uri = Uri.tryParse(url);
+                    if (uri != null) {
+                      await launchUrl(uri, mode: LaunchMode.externalApplication);
+                    }
+                  },
+                  onFormSubmit: (data, promptText) =>
+                      _handleSendMessage(promptText),
                 ),
-                const SizedBox(height: 10),
-                if (hasSearchingSources) ...[
-                  // Google AI Tarayıcı Modu: Kaynak Logoları ve İsimleri
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    physics: const BouncingScrollPhysics(),
-                    child: Row(
-                      children: _activeSearchingSources!.map((src) {
-                        final title = src['title'] ?? '';
-                        final url = src['url'] ?? '';
-                        final domain = _extractDomain(url);
-                        return Container(
-                          margin: const EdgeInsets.only(right: 8),
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF1E1F20),
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(
-                              color: const Color(0xFF333538),
-                              width: 0.8,
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              _buildFavicon(domain, 14),
-                              const SizedBox(width: 6),
-                              ConstrainedBox(
-                                constraints:
-                                    const BoxConstraints(maxWidth: 130),
-                                child: Text(
-                                  title.isNotEmpty ? title : domain,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    fontSize: 11,
-                                    color: Color(0xFFE3E3E3),
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      }).toList(),
+                if (msg.isMusicCommand &&
+                    widget.onNavigateToMusicDownload != null) ...[
+                  const SizedBox(height: 14),
+                  _buildMusicTransferCard(msg),
+                ],
+                if (msg.sources != null && msg.sources!.isNotEmpty)
+                  ChatSourcesStrip(sources: msg.sources!),
+                const SizedBox(height: 4),
+                ValueListenableBuilder<bool>(
+                  valueListenable: JarvisTtsService.instance.isSpeakingNotifier,
+                  builder: (context, _, __) {
+                    final isSpeaking = JarvisTtsService.instance
+                        .isSpeakingSpecificText(msg.content);
+                    return ChatMessageActions(
+                      rawText: msg.content,
+                      isSpeaking: isSpeaking,
+                      onSpeak: () =>
+                          JarvisTtsService.instance.toggleSpeak(msg.content),
+                      onRegenerate: () => _regenerateMessage(msg),
+                    );
+                  },
+                ),
+                if (msg.usedModel != null && msg.usedModel!.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Text(
+                      msg.usedModel!,
+                      style: const TextStyle(
+                        fontSize: 10.5,
+                        color: ChatUi.textMuted,
+                      ),
                     ),
                   ),
-                ] else ...[
-                  const UiStreamingIndicator(
-                    label: 'Yanıt oluşturuluyor...',
-                  ),
-                ],
               ],
             ),
           ),
@@ -2030,270 +2086,86 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  Widget _buildMessageItem(ChatMessage msg) {
-    if (msg.isUser) {
-      // Kullanıcı mesajı: Gri tonlu şık oval baloncuk + Basılı tutunca menü
-      return Align(
-        alignment: Alignment.centerRight,
-        child: Padding(
-          padding: const EdgeInsets.only(top: 8, bottom: 16, left: 50),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(22),
-              onLongPress: () => _showUserMessageOptions(msg),
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF282A2C), // Orijinal Gemini gri tonu
-                  borderRadius: BorderRadius.circular(22),
-                  border: Border.all(
-                    color: Colors.white.withOpacity(0.06),
-                    width: 0.8,
+  /// Müzik komutlarında gösterilen "indiriciye aktar" kartı.
+  Widget _buildMusicTransferCard(ChatMessage msg) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: ChatUi.cardDecoration(
+        borderColor: ChatUi.accent.withValues(alpha: 0.35),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.music_note_rounded, color: ChatUi.accent, size: 26),
+          const SizedBox(width: 10),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '320kbps MP3 indiriciye aktar',
+                  style: TextStyle(
+                    color: ChatUi.textPrimary,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
                   ),
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (msg.imageBytes != null) ...[
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(14),
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(
-                            maxHeight: 220,
-                            maxWidth: 260,
-                          ),
-                          child: Image.memory(
-                            msg.imageBytes!,
-                            fit: BoxFit.cover,
-                          ),
-                        ),
-                      ),
-                      if (msg.content.isNotEmpty) const SizedBox(height: 10),
-                    ],
-                    if (msg.content.isNotEmpty)
-                      Text(
-                        msg.content,
-                        style: const TextStyle(
-                          color: Color(0xFFF0F0F0),
-                          fontSize: 15.5,
-                          height: 1.45,
-                          fontWeight: FontWeight.normal,
-                        ),
-                      ),
-                  ],
+                Text(
+                  'Şarkıyı hemen arayıp cihazına indirebilirsin',
+                  style: TextStyle(color: ChatUi.textMuted, fontSize: 11),
                 ),
-              ),
+              ],
             ),
           ),
-        ),
-      );
-    } else {
-      return Padding(
-        padding: const EdgeInsets.only(bottom: 24),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Padding(
-              padding: EdgeInsets.only(top: 2),
-              child: GeminiSparkleIcon(size: 20),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: ChatUi.accent,
+              foregroundColor: Colors.black,
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              minimumSize: const Size(0, 34),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (msg.usedModel != null || msg.isWebSearch)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 6),
-                      child: Row(
-                        children: [
-                          if (msg.usedModel != null)
-                            Text(
-                              msg.usedModel!,
-                              style: const TextStyle(
-                                fontSize: 11,
-                                color: GeminiColors.textMuted,
-                              ),
-                            ),
-                          if (msg.isWebSearch) ...[
-                            if (msg.usedModel != null) const SizedBox(width: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color:
-                                    GeminiColors.geminiBlue.withOpacity(0.15),
-                                borderRadius: BorderRadius.circular(6),
-                                border: Border.all(
-                                  color:
-                                      GeminiColors.geminiBlue.withOpacity(0.4),
-                                  width: 0.8,
-                                ),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(
-                                    Icons.language_rounded,
-                                    size: 11,
-                                    color: GeminiColors.geminiBlue,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    msg.searchQuery != null &&
-                                            msg.searchQuery!.isNotEmpty
-                                        ? 'Web: ${msg.searchQuery}'
-                                        : 'Web Araması',
-                                    style: const TextStyle(
-                                      fontSize: 10,
-                                      color: GeminiColors.geminiBlue,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                  if (msg.sources != null && msg.sources!.isNotEmpty)
-                    _ExpandableSourcesWidget(
-                      sources: msg.sources!,
-                      buildFavicon: _buildFavicon,
-                      extractDomain: _extractDomain,
-                    ),
-                  GenerativeMessageView(
-                    content: msg.content,
-                    onActionPrompt: (prompt) => _handleSendMessage(prompt),
-                    onFormSubmit: (data, promptText) =>
-                        _handleSendMessage(promptText),
-                  ),
-                  if (msg.isMusicCommand &&
-                      widget.onNavigateToMusicDownload != null) ...[
-                    const SizedBox(height: 14),
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF141414),
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(
-                            color: GeminiColors.geminiBlue.withOpacity(0.4),
-                            width: 1),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.music_note,
-                              color: GeminiColors.geminiCyan, size: 28),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: const [
-                                Text(
-                                  '320kbps MP3 İndiriciye Aktar',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 13,
-                                  ),
-                                ),
-                                Text(
-                                  'Şarkıyı hemen arayıp cihazına indirebilirsin',
-                                  style: TextStyle(
-                                    color: GeminiColors.textMuted,
-                                    fontSize: 11,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          ElevatedButton.styleFrom(
-                            backgroundColor: GeminiColors.geminiBlue,
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                          ).let(
-                            (style) => ElevatedButton.icon(
-                              style: style,
-                              icon: const Icon(Icons.download, size: 16),
-                              label: const Text('İndir'),
-                              onPressed: () {
-                                final songName = _extractSongQuery(msg.content);
-                                widget.onNavigateToMusicDownload!(songName);
-                              },
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.copy,
-                            size: 16, color: GeminiColors.textMuted),
-                        tooltip: 'Metni Kopyala',
-                        onPressed: () {
-                          Clipboard.setData(ClipboardData(text: msg.content));
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Metin panoya kopyalandı!'),
-                              duration: Duration(seconds: 1),
-                            ),
-                          );
-                        },
-                      ),
-                      // Sesli Dinle (Erkek Jarvis Sesi)
-                      ValueListenableBuilder<bool>(
-                        valueListenable:
-                            JarvisTtsService.instance.isSpeakingNotifier,
-                        builder: (context, isSpeaking, _) {
-                          final isThisMsg = JarvisTtsService.instance
-                              .isSpeakingSpecificText(msg.content);
-                          return IconButton(
-                            icon: Icon(
-                              isThisMsg
-                                  ? Icons.volume_up_rounded
-                                  : Icons.volume_up_outlined,
-                              size: 17,
-                              color: isThisMsg
-                                  ? const Color(0xFF00F2FE)
-                                  : GeminiColors.textMuted,
-                            ),
-                            tooltip: isThisMsg
-                                ? 'Seslendirmeyi Durdur'
-                                : 'Sesli Dinle (Jarvis Erkek Sesi)',
-                            onPressed: () => JarvisTtsService.instance
-                                .toggleSpeak(msg.content),
-                          );
-                        },
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.thumb_up_alt_outlined,
-                            size: 16, color: GeminiColors.textMuted),
-                        tooltip: 'İyi Yanıt',
-                        onPressed: () {},
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.thumb_down_alt_outlined,
-                            size: 16, color: GeminiColors.textMuted),
-                        tooltip: 'Kötü Yanıt',
-                        onPressed: () {},
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+            onPressed: () {
+              final songName = _extractSongQuery(msg.content);
+              widget.onNavigateToMusicDownload!(songName);
+            },
+            child: const Text(
+              'İndir',
+              style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700),
             ),
-          ],
-        ),
-      );
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Bir asistan yanıtını yeniden üretir: kendisinden sonraki mesajları siler
+  /// ve son kullanıcı isteğini tekrar gönderir.
+  void _regenerateMessage(ChatMessage msg) {
+    if (_isLoading) return;
+    final idx = _messages.indexWhere((m) => m.id == msg.id);
+    if (idx < 0) return;
+
+    var userIdx = idx - 1;
+    while (userIdx >= 0 && !_messages[userIdx].isUser) {
+      userIdx--;
     }
+    if (userIdx < 0) return;
+
+    final userMsg = _messages[userIdx];
+    setState(() {
+      _messages.removeRange(userIdx + 1, _messages.length);
+      _isLoading = true;
+    });
+    _scrollToBottom();
+    _sendToGemini(
+      userMsg.content,
+      imageBytes: userMsg.imageBytes,
+      mimeType: userMsg.imageMimeType,
+    );
+  }
+
+  Widget _buildMessageItem(ChatMessage msg) {
+    return msg.isUser ? _buildUserMessage(msg) : _buildAssistantMessage(msg);
   }
 
   Widget _buildExactPhotoPillBar() {
@@ -2732,152 +2604,6 @@ class _TikTokStyleScrubBarState extends State<_TikTokStyleScrubBar> {
           ),
         );
       },
-    );
-  }
-}
-
-/// Kaynaklar yazısına basılınca açılıp kapanabilen (Accordion) kaynak listesi
-class _ExpandableSourcesWidget extends StatefulWidget {
-  final List<Map<String, String>> sources;
-  final Widget Function(String domain, double size) buildFavicon;
-  final String Function(String url) extractDomain;
-
-  const _ExpandableSourcesWidget({
-    required this.sources,
-    required this.buildFavicon,
-    required this.extractDomain,
-  });
-
-  @override
-  State<_ExpandableSourcesWidget> createState() =>
-      _ExpandableSourcesWidgetState();
-}
-
-class _ExpandableSourcesWidgetState extends State<_ExpandableSourcesWidget> {
-  bool _isExpanded = true;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Tıklanabilir ve açılıp kapanabilir "KAYNAKLAR" başlığı
-          InkWell(
-            borderRadius: BorderRadius.circular(8),
-            onTap: () {
-              setState(() {
-                _isExpanded = !_isExpanded;
-              });
-            },
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text(
-                    'KAYNAKLAR',
-                    style: TextStyle(
-                      fontSize: 10.5,
-                      fontWeight: FontWeight.bold,
-                      color: GeminiColors.textMuted,
-                      letterSpacing: 0.8,
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  Icon(
-                    _isExpanded
-                        ? Icons.keyboard_arrow_up_rounded
-                        : Icons.keyboard_arrow_down_rounded,
-                    size: 15,
-                    color: GeminiColors.textMuted,
-                  ),
-                  const SizedBox(width: 4),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF2A2B30),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      '${widget.sources.length}',
-                      style: const TextStyle(
-                        fontSize: 9.5,
-                        color: GeminiColors.textSecondary,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          if (_isExpanded) ...[
-            const SizedBox(height: 6),
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              physics: const BouncingScrollPhysics(),
-              child: Row(
-                children: widget.sources.map((src) {
-                  final title = src['title'] ?? '';
-                  final url = src['url'] ?? '';
-                  final domain = widget.extractDomain(url);
-                  return Container(
-                    margin: const EdgeInsets.only(right: 8),
-                    constraints: const BoxConstraints(maxWidth: 160),
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF1E1F20),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: const Color(0xFF333538),
-                        width: 0.8,
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        widget.buildFavicon(domain, 14),
-                        const SizedBox(width: 7),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                title.isNotEmpty ? title : domain,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  fontSize: 11,
-                                  color: Color(0xFFE3E3E3),
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              Text(
-                                domain,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  fontSize: 9.5,
-                                  color: GeminiColors.textMuted,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                }).toList(),
-              ),
-            ),
-          ],
-        ],
-      ),
     );
   }
 }
